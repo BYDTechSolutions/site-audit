@@ -83,6 +83,7 @@ describe('security details', () => {
     const ids = r.findings.map((f) => f.id);
     expect(ids).toEqual(expect.arrayContaining(['security/hsts-short', 'security/csp-weak', 'security/referrer-policy', 'security/x-xss-protection', 'security/mixed-content', 'security/mixed-content-upgradable', 'security/cookies']));
     expect(r.findings.find((f) => f.id === 'security/mixed-content')?.priority).toBe('fix-now');
+    expect(r.findings.find((f) => f.id === 'security/clickjacking')?.priority).toBe('should-fix');
   });
 
   it('parses CSP directives, first one wins', () => {

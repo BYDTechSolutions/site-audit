@@ -88,7 +88,7 @@ export async function assertAllowed(url: URL, ctx: FetchContext): Promise<void> 
   const host = url.hostname.replace(/^\[|\]$/g, '');
   const reason = classifyHostname(host);
   if (reason) {
-    throw new SiteAuditError('BLOCKED', `Refusing to fetch ${url.href}: ${host} is a ${reason} address. Private targets are only allowed when you audit your own machine.`);
+    throw new SiteAuditError('BLOCKED', `Refusing to fetch ${url.href}: ${host} is not a public address (${reason}). To audit your own machine, pass allowPrivate: true (the CLI does this for localhost, 127.0.0.1 and ::1).`);
   }
   if (!ctx.resolveHost || isIpLiteral(host)) return;
   let pending = ctx.dns.get(host);
@@ -105,7 +105,7 @@ export async function assertAllowed(url: URL, ctx: FetchContext): Promise<void> 
   for (const address of addresses) {
     const why = classifyIp(address);
     if (why) {
-      throw new SiteAuditError('BLOCKED', `Refusing to fetch ${url.href}: ${host} resolves to ${address}, a ${why} address.`);
+      throw new SiteAuditError('BLOCKED', `Refusing to fetch ${url.href}: ${host} resolves to ${address}, which is not a public address (${why}).`);
     }
   }
 }

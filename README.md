@@ -139,7 +139,7 @@ site-audit <url> [options]
 
 **Exit codes:** `0` the audit ran (whatever it found), `1` the `--fail-on` threshold was met, `2` bad usage, or the page itself could not be fetched (DNS, connection, timeout, too many redirects, or a blocked private address).
 
-**Your own machine.** When the URL is `localhost`, `127.0.0.1` or `[::1]`, the CLI allows private addresses on purpose, so you can audit a dev server. For every other URL, private, loopback, link-local and cloud-metadata addresses are refused, including after redirects and including public hostnames that resolve to them.
+**Your own machine.** When the URL is `localhost`, `127.0.0.1` or `[::1]`, the CLI allows private addresses on purpose, so you can audit a dev server. There, missing security headers are listed as "Nice to have", because in production they usually come from your host or CDN, and a canonical or sitemap entry on your production domain counts when the path matches. For every other URL, private, loopback, link-local and cloud-metadata addresses are refused, including after redirects and including public hostnames that resolve to them.
 
 ## API reference
 
@@ -160,7 +160,7 @@ console.log(formatReport(report, 'md'));
 
 ### `audit(url, options?): Promise<Report>`
 
-Audits one URL. `url` may omit the scheme. It throws `SiteAuditError` (with `code` `INVALID_URL`, `BLOCKED` or `FETCH`) only when the page itself cannot be fetched; everything else, including a failed PageSpeed Insights call, ends up in the report.
+Audits one URL. `url` may omit the scheme. Private and loopback targets are refused by default; to audit your own dev server from code, pass `allowPrivate: true`. It throws `SiteAuditError` (with `code` `INVALID_URL`, `BLOCKED` or `FETCH`) only when the page itself cannot be fetched; everything else, including a failed PageSpeed Insights call, ends up in the report.
 
 A `Report` has:
 

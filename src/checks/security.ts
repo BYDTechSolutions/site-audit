@@ -29,6 +29,20 @@ export async function checkSecurity(ctx: AuditContext): Promise<void> {
   const h = ctx.page.headers;
   const https = ctx.pageUrl.protocol === 'https:';
   const local = isLocalDevHost(ctx.pageUrl.hostname);
+  // On a dev server, response headers usually come from the production host or CDN,
+  // so header findings drop to nice-to-have and say so.
+  const headerIds = new Set(['csp-missing', 'clickjacking', 'nosniff', 'referrer-policy', 'permissions-policy', 'version-headers', 'x-xss-protection']);
+  const add = ctx.add;
+  ctx = {
+    ...ctx,
+    add: (finding) => {
+      if (local && headerIds.has(finding.id.replace(`${AREA}/`, ''))) {
+        add({ ...finding, priority: 'nice-to-have', observed: `${finding.observed} (Local server: your production host or CDN may set this; check the deployed site.)` });
+      } else {
+        add(finding);
+      }
+    },
+  };
 
   if (!https) {
     if (local) {

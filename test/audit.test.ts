@@ -129,6 +129,8 @@ describe('audit: a broken page', () => {
   it('flags security headers and cookies', () => {
     expect(ids(brokenReport)).toEqual(expect.arrayContaining(['security/csp-missing', 'security/clickjacking', 'security/nosniff', 'security/version-headers', 'security/cookies']));
     expect(find(brokenReport, 'security/cookies')?.details?.join(' ')).toMatch(/SameSite=None without Secure/);
+    // On a dev server, header findings are nice-to-have and say why.
+    expect(find(brokenReport, 'security/csp-missing')).toMatchObject({ priority: 'nice-to-have', observed: expect.stringMatching(/Local server/) });
   });
 
   it('detects ad pixels, session replay and consent tags', () => {
@@ -158,7 +160,7 @@ describe('audit: options and errors', () => {
   });
 
   it('throws BLOCKED for a loopback target without allowPrivate', async () => {
-    await expect(audit(`${good.origin}/`, { psi: false })).rejects.toMatchObject({ code: 'BLOCKED' });
+    await expect(audit(`${good.origin}/`, { psi: false })).rejects.toMatchObject({ code: 'BLOCKED', message: expect.stringMatching(/not a public address \(loopback\).*allowPrivate: true/) });
   });
 
   it('throws FETCH when nothing answers', async () => {
