@@ -1,0 +1,73 @@
+{
+  "name": "@bydtech/site-audit",
+  "version": "0.1.0",
+  "description": "One honest website audit from the terminal: SEO, AI-crawler access, structured data, link previews, speed, accessibility, security headers, installed tags and broken links, as a prioritized fix list with evidence labels.",
+  "keywords": [
+    "seo",
+    "audit",
+    "site-audit",
+    "ai-crawlers",
+    "gptbot",
+    "robots.txt",
+    "structured-data",
+    "json-ld",
+    "open-graph",
+    "pagespeed-insights",
+    "core-web-vitals",
+    "accessibility",
+    "security-headers",
+    "llms.txt",
+    "cli"
+  ],
+  "homepage": "https://github.com/BYDTechSolutions/site-audit#readme",
+  "bugs": {
+    "url": "https://github.com/BYDTechSolutions/site-audit/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BYDTechSolutions/site-audit.git"
+  },
+  "license": "MIT",
+  "author": "BYD Tech <sales.bydtech@gmail.com> (https://bydtech.in)",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "site-audit": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@bydtech/llms-txt": "^0.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12"
+  }
+}
