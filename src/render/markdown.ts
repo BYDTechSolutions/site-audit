@@ -9,7 +9,7 @@ export function formatMarkdown(report: Report): string {
   const c = counts(report);
   const out: string[] = [];
   out.push(`# Site audit: ${report.url}`, '');
-  out.push(`${report.areas.length} areas checked on ${report.startedAt.slice(0, 10)} in ${duration(report.durationMs)}. **${c['fix-now']} fix now**, **${c['should-fix']} should fix**, **${c['nice-to-have']} nice to have**, ${report.passed.length} passed.`);
+  out.push(`${report.areas.length} areas checked on ${report.startedAt.slice(0, 16).replace('T', ' ')} UTC in ${duration(report.durationMs)}. **${c['fix-now']} fix now**, **${c['should-fix']} should fix**, **${c['nice-to-have']} nice to have**, ${report.passed.length} passed.`);
   if (report.finalUrl !== report.url) out.push('', `Ended at ${report.finalUrl} (HTTP ${report.data.page.status}).`);
   out.push('', '> Labels: **Measured** = observed on the site in this run. **Google-documented** = Google\'s own documentation says it matters. **Optional / speculative** = no search engine has confirmed it matters.');
 

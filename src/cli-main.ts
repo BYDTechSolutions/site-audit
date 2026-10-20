@@ -176,7 +176,10 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
   } catch (error) {
     clearProgress();
     if (error instanceof SiteAuditError) {
-      io.stderr(`site-audit: ${error.message}\n`);
+      const tlsHint = target.startsWith('https:') && /SSL|TLS|EPROTO|certificate/i.test(error.message)
+        ? `\nIf the server speaks plain HTTP (most dev servers do), try ${target.replace(/^https:/, 'http:')}`
+        : '';
+      io.stderr(`site-audit: ${error.message}${tlsHint}\n`);
       return 2;
     }
     io.stderr(`site-audit: unexpected error: ${(error as Error).stack ?? error}\n`);
