@@ -29,9 +29,41 @@ function linkIn(description: string | undefined, fallback: Source): Source {
   return m ? { title: m[1] as string, url: m[2] as string } : fallback;
 }
 
-/** Strips Markdown links to their text. */
-function plain(description: string | undefined): string {
-  return (description ?? '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim();
+/**
+ * Strips Markdown links to their text, and drops the "Learn more…" sentences
+ * Lighthouse ends its descriptions with: the link they pointed to is already
+ * the finding's source, and as plain text they read as a dangling invitation.
+ */
+export function plain(description: string | undefined): string {
+  const text = (description ?? '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim();
+  const sentences = text.match(/[^.!?]+(?:[.!?]+|$)/g) ?? [text];
+  return sentences
+    .filter((s) => !/^\s*learn\s+(more|why|how)\b/i.test(s))
+    .join('')
+    .trim();
+}
+
+/** Lighthouse metric audit id → the key its insights report savings under. */
+const METRIC_SAVINGS_KEY: Record<string, string> = {
+  'first-contentful-paint': 'FCP',
+  'largest-contentful-paint': 'LCP',
+  'total-blocking-time': 'TBT',
+  'cumulative-layout-shift': 'CLS',
+};
+
+/** The resources a failing insight names (render-blocking files, images…), deduplicated. */
+function insightResources(audit: Json): string[] {
+  const items: Json[] = audit?.details?.items ?? [];
+  const urls = items
+    .map((item) => item?.url ?? item?.source?.url ?? item?.node?.snippet)
+    .filter((u): u is string => typeof u === 'string' && u.length > 0)
+    .map((u) => clip(u, 140));
+  return [...new Set(urls)];
+}
+
+/** The PageSpeed Insights web report for a URL, where the full Lighthouse trace lives. */
+export function psiReportUrl(target: string, strategy: 'mobile' | 'desktop'): string {
+  return `https://pagespeed.web.dev/analysis?${new URLSearchParams({ url: target, form_factor: strategy })}`;
 }
 
 /** `LARGEST_CONTENTFUL_PAINT_MS` → `Largest contentful paint`. */
@@ -115,26 +147,42 @@ export async function checkPsi(ctx: AuditContext, areas: { speed: boolean; acces
     if (areas.speed) {
       const perf = lhr.categories?.performance;
       const refs: Json[] = perf?.auditRefs ?? [];
+      const report = psiReportUrl(ctx.page.url, strategy);
+      // Failing insights, used both as their own findings and to say what holds each metric back.
+      const failingInsights = refs
+        .filter((r) => r.group === 'insights' || r.group === 'diagnostics')
+        .map((ref) => ({ ref, a: audits[ref.id] }))
+        .filter(({ a }) => a && a.score !== null && a.score !== undefined && a.score < 0.5 && ['metricSavings', 'numeric', 'binary'].includes(a.scoreDisplayMode));
+      const causesOf = (metricId: string): string[] => {
+        const key = METRIC_SAVINGS_KEY[metricId];
+        if (!key) return [];
+        return failingInsights
+          .map(({ a }) => ({ title: String(a.title), saving: Number(a.metricSavings?.[key] ?? 0) }))
+          .filter((c) => c.saving > 0)
+          .sort((x, y) => y.saving - x.saving)
+          .map((c) => `${c.title} (${key === 'CLS' ? `CLS ${c.saving}` : `about ${Math.round(c.saving)} ms`})`);
+      };
       for (const ref of refs.filter((r) => r.group === 'metrics')) {
         const a = audits[ref.id];
         if (!a) continue;
         const metric: LabMetric = { id: a.id ?? ref.id, title: a.title ?? ref.id, displayValue: a.displayValue ?? '', numericValue: a.numericValue ?? null, score: a.score ?? null };
         result.metrics.push(metric);
         if (metric.score === null || metric.score >= 0.9) continue;
+        const causes = causesOf(metric.id);
         ctx.add({
           id: `speed/metric-${metric.id}`, area: 'speed', priority: metric.score < 0.5 ? 'should-fix' : 'nice-to-have', label: 'measured',
           title: `${metric.title}: ${metric.displayValue} (lab, ${strategy})`,
           observed: `Lighthouse rates this ${metric.score < 0.5 ? 'poor' : 'needs improvement'} (metric score ${Math.round(metric.score * 100)}/100) in one simulated ${strategy} load.`,
           why: plain(a.description),
-          fix: 'See the insights listed for this strategy; they say what delays it and the estimated savings.',
+          fix: causes.length
+            ? `Start with what Lighthouse says holds it back, largest saving first (each has its own finding): ${causes.slice(0, 3).join('; ')}. Full trace: ${report}`
+            : `Lighthouse names no single insight with a saving for this metric; the full trace in PageSpeed Insights shows the timeline: ${report}`,
           source: linkIn(a.description, SOURCES.webVitals),
         });
       }
-      for (const ref of refs.filter((r) => r.group === 'insights' || r.group === 'diagnostics')) {
-        const a = audits[ref.id];
-        if (!a || a.score === null || a.score === undefined || a.score >= 0.5) continue;
-        if (!['metricSavings', 'numeric', 'binary'].includes(a.scoreDisplayMode)) continue;
+      for (const { ref, a } of failingInsights) {
         const savings: Record<string, number> = a.metricSavings ?? {};
+        const resources = insightResources(a);
         const big = (savings.LCP ?? 0) >= 500 || (savings.FCP ?? 0) >= 500 || (savings.CLS ?? 0) >= 0.1 || (savings.TBT ?? 0) >= 200;
         ctx.add({
           id: `speed/${ref.id}`, area: 'speed', priority: big ? 'should-fix' : 'nice-to-have', label: 'measured',
@@ -143,8 +191,11 @@ export async function checkPsi(ctx: AuditContext, areas: { speed: boolean; acces
             ? `Estimated savings: ${Object.entries(savings).filter(([, v]) => v).map(([k, v]) => `${k} ${k === 'CLS' ? v : `${Math.round(v)} ms`}`).join(', ') || 'none quantified'}.`
             : 'Lighthouse flags this as failing.',
           why: plain(a.description),
-          fix: 'Follow the linked guide; the Lighthouse report in PageSpeed Insights lists the exact resources.',
+          fix: resources.length
+            ? 'Start with the resources listed below; the linked guide shows how.'
+            : `Follow the linked guide; the full trace lists the exact resources: ${report}`,
           source: linkIn(a.description, SOURCES.lighthouseInsights),
+          details: resources.length ? capList(resources, 5) : undefined,
         });
       }
 

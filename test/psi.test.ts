@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { audit } from '../src/audit.js';
-import { fieldMetricName, psiRequestUrl } from '../src/checks/psi.js';
+import { fieldMetricName, plain, psiReportUrl, psiRequestUrl } from '../src/checks/psi.js';
 import { fakeResolver, fixture, json, siteFetch, startServer, type TestServer } from './helpers.js';
 import { goodSite } from './sites.js';
 
@@ -91,6 +91,33 @@ describe('PageSpeed Insights', () => {
     const r = await audit(`${server.origin}/`, { allowPrivate: true, only: ['speed'], fetch: siteFetch(server, () => { throw new Error('no'); }) });
     expect(calls).toEqual([]);
     expect(r.notes[0]?.message).toMatch(/cannot reach/);
+  });
+
+  it('drops the "Learn more" sentences Lighthouse appends, keeping links that are part of a sentence', () => {
+    expect(plain('First Contentful Paint marks when the first text is painted. [Learn more about the First Contentful Paint metric](https://x.test/fcp).'))
+      .toBe('First Contentful Paint marks when the first text is painted.');
+    expect(plain('Polyfills are often unneeded. Learn why most sites can deploy ES6+ code without transpiling'))
+      .toBe('Polyfills are often unneeded.');
+    expect(plain('Low contrast is hard to read. [Learn how to provide sufficient color contrast](https://x.test/c).'))
+      .toBe('Low contrast is hard to read.');
+    expect(plain('Requests block the first render. [Deferring or inlining](https://x.test/r) moves them off the critical path.'))
+      .toBe('Requests block the first render. Deferring or inlining moves them off the critical path.');
+  });
+
+  it('says which insights hold a metric back, and lists the resources an insight names', async () => {
+    const r = await run(() => json(fixture('psi-mobile.json')), { only: ['speed'] });
+    const byId = Object.fromEntries(r.findings.map((f) => [f.id, f]));
+    const lcp = byId['speed/metric-largest-contentful-paint'];
+    expect(lcp?.why).not.toMatch(/learn more/i);
+    // Largest saving first; an insight with no LCP saving is not blamed.
+    expect(lcp?.fix).toMatch(/Render-blocking requests \(about 900 ms\); Reduce unused JavaScript \(about 100 ms\)/);
+    expect(lcp?.fix).toContain(psiReportUrl('https://site.test/', 'mobile'));
+    const tbt = byId['speed/metric-total-blocking-time'];
+    expect(tbt?.fix).toMatch(/names no single insight/);
+    const blocking = byId['speed/render-blocking-insight'];
+    expect(blocking?.details).toEqual(['https://site.test/fonts.css', 'https://site.test/app.css']);
+    expect(blocking?.fix).toMatch(/resources listed below/);
+    expect(byId['speed/unused-javascript']?.fix).toContain('pagespeed.web.dev/analysis?');
   });
 
   it('names field metrics from their keys', () => {
