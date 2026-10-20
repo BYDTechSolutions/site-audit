@@ -1,0 +1,102 @@
+{
+  "captchaResult": "CAPTCHA_NOT_NEEDED",
+  "kind": "pagespeedonline#result",
+  "id": "https://site.test/",
+  "loadingExperience": {
+    "id": "https://site.test/",
+    "metrics": {
+      "LARGEST_CONTENTFUL_PAINT_MS": {
+        "percentile": 4800,
+        "distributions": [
+          { "min": 0, "max": 2500, "proportion": 0.41 },
+          { "min": 2500, "max": 4000, "proportion": 0.27 },
+          { "min": 4000, "proportion": 0.32 }
+        ],
+        "category": "SLOW"
+      },
+      "INTERACTION_TO_NEXT_PAINT": {
+        "percentile": 240,
+        "distributions": [
+          { "min": 0, "max": 200, "proportion": 0.7 },
+          { "min": 200, "max": 500, "proportion": 0.22 },
+          { "min": 500, "proportion": 0.08 }
+        ],
+        "category": "AVERAGE"
+      },
+      "FIRST_CONTENTFUL_PAINT_MS": {
+        "percentile": 1500,
+        "distributions": [
+          { "min": 0, "max": 1800, "proportion": 0.8 },
+          { "min": 1800, "max": 3000, "proportion": 0.15 },
+          { "min": 3000, "proportion": 0.05 }
+        ],
+        "category": "FAST"
+      }
+    },
+    "overall_category": "SLOW",
+    "initial_url": "https://site.test/"
+  },
+  "originLoadingExperience": {
+    "id": "https://site.test",
+    "metrics": {},
+    "overall_category": "NONE",
+    "initial_url": "https://site.test/"
+  },
+  "lighthouseResult": {
+    "requestedUrl": "https://site.test/",
+    "finalUrl": "https://site.test/",
+    "lighthouseVersion": "13.5.0",
+    "fetchTime": "2026-10-21T10:00:00.000Z",
+    "runWarnings": [],
+    "configSettings": { "formFactor": "mobile", "locale": "en-US", "onlyCategories": ["performance", "accessibility"] },
+    "categories": {
+      "performance": {
+        "id": "performance",
+        "title": "Performance",
+        "score": 0.41,
+        "auditRefs": [
+          { "id": "first-contentful-paint", "weight": 10, "group": "metrics" },
+          { "id": "largest-contentful-paint", "weight": 25, "group": "metrics" },
+          { "id": "total-blocking-time", "weight": 30, "group": "metrics" },
+          { "id": "cumulative-layout-shift", "weight": 25, "group": "metrics" },
+          { "id": "speed-index", "weight": 10, "group": "metrics" },
+          { "id": "render-blocking-insight", "weight": 0, "group": "insights" },
+          { "id": "image-delivery-insight", "weight": 0, "group": "insights" },
+          { "id": "dom-size-insight", "weight": 0, "group": "insights" },
+          { "id": "unused-javascript", "weight": 0, "group": "diagnostics" },
+          { "id": "final-screenshot", "weight": 0, "group": "hidden" }
+        ]
+      },
+      "accessibility": {
+        "id": "accessibility",
+        "title": "Accessibility",
+        "score": 0.82,
+        "auditRefs": [
+          { "id": "color-contrast", "weight": 7, "group": "a11y-color-contrast" },
+          { "id": "image-alt", "weight": 10, "group": "a11y-names-labels" },
+          { "id": "html-has-lang", "weight": 7, "group": "a11y-language" },
+          { "id": "link-in-text-block", "weight": 0, "group": "a11y-color-contrast" },
+          { "id": "logical-tab-order", "weight": 0 }
+        ]
+      }
+    },
+    "audits": {
+      "first-contentful-paint": { "id": "first-contentful-paint", "title": "First Contentful Paint", "description": "First Contentful Paint marks when the first text or image is painted. [Learn more](https://developer.chrome.com/docs/lighthouse/performance/first-contentful-paint/)", "score": 0.92, "scoreDisplayMode": "numeric", "numericValue": 1412.3, "numericUnit": "millisecond", "displayValue": "1.4 s" },
+      "largest-contentful-paint": { "id": "largest-contentful-paint", "title": "Largest Contentful Paint", "description": "Largest Contentful Paint marks when the largest text or image is painted. [Learn more](https://developer.chrome.com/docs/lighthouse/performance/lighthouse-largest-contentful-paint/)", "score": 0.21, "scoreDisplayMode": "numeric", "numericValue": 5210.9, "numericUnit": "millisecond", "displayValue": "5.2 s" },
+      "total-blocking-time": { "id": "total-blocking-time", "title": "Total Blocking Time", "description": "Sum of the time the main thread was blocked between FCP and Time to Interactive. [Learn more](https://developer.chrome.com/docs/lighthouse/performance/lighthouse-total-blocking-time/)", "score": 0.64, "scoreDisplayMode": "numeric", "numericValue": 420, "numericUnit": "millisecond", "displayValue": "420 ms" },
+      "cumulative-layout-shift": { "id": "cumulative-layout-shift", "title": "Cumulative Layout Shift", "description": "Measures the movement of visible elements. [Learn more](https://web.dev/articles/cls)", "score": 1, "scoreDisplayMode": "numeric", "numericValue": 0.01, "numericUnit": "unitless", "displayValue": "0.01" },
+      "speed-index": { "id": "speed-index", "title": "Speed Index", "description": "How quickly the contents of a page are visibly populated. [Learn more](https://developer.chrome.com/docs/lighthouse/performance/speed-index/)", "score": 0.95, "scoreDisplayMode": "numeric", "numericValue": 1900, "numericUnit": "millisecond", "displayValue": "1.9 s" },
+      "render-blocking-insight": { "id": "render-blocking-insight", "title": "Render-blocking requests", "description": "Requests are blocking the first render. [Deferring or inlining](https://developer.chrome.com/docs/performance/insights/render-blocking) moves them off the critical path.", "score": 0, "scoreDisplayMode": "metricSavings", "displayValue": "Est savings of 900 ms", "metricSavings": { "FCP": 900, "LCP": 900 }, "details": { "type": "table", "items": [] } },
+      "image-delivery-insight": { "id": "image-delivery-insight", "title": "Improve image delivery", "description": "Smaller images download faster. [Learn more](https://developer.chrome.com/docs/performance/insights/image-delivery)", "score": 0.5, "scoreDisplayMode": "metricSavings", "displayValue": "Est savings of 120 KiB", "metricSavings": { "LCP": 150 } },
+      "dom-size-insight": { "id": "dom-size-insight", "title": "Optimize DOM size", "description": "A large DOM slows style and layout. [Learn more](https://developer.chrome.com/docs/performance/insights/dom-size)", "score": 1, "scoreDisplayMode": "informative" },
+      "unused-javascript": { "id": "unused-javascript", "title": "Reduce unused JavaScript", "description": "Remove unused JavaScript. [Learn more](https://developer.chrome.com/docs/lighthouse/performance/unused-javascript/)", "score": 0, "scoreDisplayMode": "metricSavings", "displayValue": "Est savings of 80 KiB", "metricSavings": { "LCP": 100, "FCP": 0 } },
+      "final-screenshot": { "id": "final-screenshot", "title": "Final Screenshot", "description": "The last screenshot.", "score": null, "scoreDisplayMode": "informative" },
+      "color-contrast": { "id": "color-contrast", "title": "Background and foreground colors do not have a sufficient contrast ratio.", "description": "Low-contrast text is hard to read. [Learn how to provide sufficient color contrast](https://dequeuniversity.com/rules/axe/4.13/color-contrast).", "score": 0, "scoreDisplayMode": "binary", "details": { "type": "table", "items": [ { "node": { "type": "node", "selector": "footer > p.small", "snippet": "<p class=\"small\">", "nodeLabel": "Copyright" } }, { "node": { "type": "node", "selector": "a.cta", "snippet": "<a class=\"cta\" href=\"/start\">", "nodeLabel": "Start" } } ] } },
+      "image-alt": { "id": "image-alt", "title": "Image elements do not have `[alt]` attributes", "description": "Informative images need short alternative text. [Learn more about the `alt` attribute](https://dequeuniversity.com/rules/axe/4.13/image-alt).", "score": 0, "scoreDisplayMode": "binary", "details": { "type": "table", "items": [ { "node": { "type": "node", "selector": "main > img", "snippet": "<img src=\"hero.jpg\">", "nodeLabel": "main > img" } } ] } },
+      "html-has-lang": { "id": "html-has-lang", "title": "`<html>` element has a `[lang]` attribute", "description": "The lang attribute tells screen readers the language. [Learn more](https://dequeuniversity.com/rules/axe/4.13/html-has-lang).", "score": 1, "scoreDisplayMode": "binary" },
+      "link-in-text-block": { "id": "link-in-text-block", "title": "Links rely on color to be distinguishable.", "description": "Links need more than color. [Learn more](https://dequeuniversity.com/rules/axe/4.13/link-in-text-block).", "score": null, "scoreDisplayMode": "notApplicable" },
+      "logical-tab-order": { "id": "logical-tab-order", "title": "The page has a logical tab order", "description": "Manual check.", "score": null, "scoreDisplayMode": "manual" }
+    }
+  },
+  "analysisUTCTimestamp": "2026-10-21T10:00:00.000Z"
+}
