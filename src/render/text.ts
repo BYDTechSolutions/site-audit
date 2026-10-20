@@ -82,10 +82,11 @@ export function formatText(report: Report, options: TextOptions = {}): string {
   const preview = report.data.preview;
   if (preview) {
     out.push('', bold('LINK PREVIEW') + dim('  (from Open Graph and meta tags)'));
-    out.push(wrap(`Title: ${preview.title ?? '(none)'}`, width, '         ', '  '));
-    out.push(wrap(`Text:  ${preview.description ?? '(none)'}`, width, '         ', '  '));
     const img = preview.image;
-    out.push(wrap(`Image: ${img ? `${img.url}${img.width ? ` (${img.width}×${img.height})` : ''}${img.status && img.status !== 200 ? ` — HTTP ${img.status}` : ''}` : '(none)'}`, width, '         ', '  '));
+    const field = (name: string, value: string) => wrap(value, width, ' '.repeat(9), `  ${pad(`${name}:`, 7)}`);
+    out.push(field('Title', preview.title ?? '(none)'));
+    out.push(field('Text', preview.description ?? '(none)'));
+    out.push(field('Image', img ? `${img.url}${img.width ? ` (${img.width}×${img.height})` : ''}${img.status && img.status !== 200 ? ` — HTTP ${img.status}` : ''}` : '(none)'));
   }
 
   for (const s of report.data.speed ?? []) {

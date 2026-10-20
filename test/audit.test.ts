@@ -179,6 +179,18 @@ describe('audit: options and errors', () => {
     await site.close();
   });
 
+  it('on a dev server, accepts a canonical and sitemap entry for the same path on the production host', async () => {
+    const site = await startServer({
+      '/': { headers: { 'content-type': 'text/html' }, body: '<title>x</title><link rel="canonical" href="https://prod.test/">' },
+      '/robots.txt': { headers: { 'content-type': 'text/plain' }, body: 'User-agent: *\nAllow: /\n' },
+      '/sitemap.xml': { headers: { 'content-type': 'application/xml' }, body: '<urlset><url><loc>https://prod.test/</loc></url></urlset>' },
+    });
+    const r = await audit(`${site.origin}/`, { ...fast, only: ['indexability', 'robots-sitemaps'] });
+    expect(r.findings.map((f) => f.id)).toEqual([]);
+    expect(r.passed.map((p) => p.title)).toEqual(expect.arrayContaining(['Canonical URL points to this path on prod.test (expected on a dev server)', 'This page is listed in the sitemap']));
+    await site.close();
+  });
+
   it('adds a scheme to bare hosts', () => {
     expect(normalizeUrl('example.com')).toBe('https://example.com');
     expect(normalizeUrl('localhost:3000/x')).toBe('http://localhost:3000/x');

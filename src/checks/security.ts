@@ -32,7 +32,7 @@ export async function checkSecurity(ctx: AuditContext): Promise<void> {
 
   if (!https) {
     if (local) {
-      ctx.note(AREA, 'Served over plain HTTP from your own machine, so HTTPS and HSTS checks are skipped. Re-run against the deployed site.');
+      ctx.note(AREA, 'Served over plain HTTP from your own machine, so HTTPS and HSTS checks are skipped. Headers your host or CDN adds in production (for example from a _headers file) are not applied by a local server either; re-check headers on the deployed site.');
     } else {
       ctx.add({
         id: `${AREA}/no-https`, area: AREA, priority: 'fix-now', label: 'measured',

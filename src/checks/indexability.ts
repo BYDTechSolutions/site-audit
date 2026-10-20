@@ -2,6 +2,7 @@ import { capList, type AuditContext } from '../context.js';
 import { SOURCES } from '../facts/sources.js';
 import { linksWithRel, tagsNamed } from '../html.js';
 import { safeFetch } from '../net/fetcher.js';
+import { isLocalDevHost } from '../net/ip.js';
 import { robotsPath, robotsVerdict } from '../robots.js';
 
 const AREA = 'indexability' as const;
@@ -170,8 +171,19 @@ export async function checkIndexability(ctx: AuditContext): Promise<void> {
       });
     }
     const target = distinct[0] as string;
+    const local = isLocalDevHost(ctx.pageUrl.hostname);
+    const samePath = (() => {
+      try {
+        const t = new URL(target);
+        return t.pathname + t.search === ctx.pageUrl.pathname + ctx.pageUrl.search;
+      } catch {
+        return false;
+      }
+    })();
     if (sameUrl(target, ctx.page.url)) {
       ctx.pass(`${AREA}/canonical`, AREA, 'Canonical URL points to this page');
+    } else if (local && samePath) {
+      ctx.pass(`${AREA}/canonical`, AREA, `Canonical URL points to this path on ${new URL(target).host} (expected on a dev server)`);
     } else {
       let targetNote = '';
       let broken = false;

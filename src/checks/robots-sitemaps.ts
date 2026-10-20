@@ -1,6 +1,7 @@
 import { capList, type AuditContext } from '../context.js';
 import { SOURCES } from '../facts/sources.js';
 import { decodeText, safeFetch } from '../net/fetcher.js';
+import { isLocalDevHost } from '../net/ip.js';
 import { gunzip, isGzip, isW3cDate, parseSitemap, type SitemapEntry } from '../sitemap.js';
 import type { SitemapSummary } from '../types.js';
 
@@ -250,13 +251,12 @@ export async function checkRobotsSitemaps(ctx: AuditContext): Promise<void> {
   }
 
   if (complete) {
+    // On a dev server the sitemap lists production URLs, so compare paths only.
+    const local = isLocalDevHost(ctx.pageUrl.hostname);
+    const key = (u: URL) => (local ? u.pathname + u.search : `${u.origin}${u.pathname}${u.search}`);
     const listed = pageUrls.some((e) => {
       try {
-        const a = new URL(e.loc, origin);
-        a.hash = '';
-        const b = new URL(ctx.page.url);
-        b.hash = '';
-        return a.href === b.href;
+        return key(new URL(e.loc, origin)) === key(new URL(ctx.page.url));
       } catch {
         return false;
       }

@@ -100,7 +100,7 @@ export async function checkPsi(ctx: AuditContext, areas: { speed: boolean; acces
     if (!outcome.ok) {
       results.push({ strategy, error: outcome.message, lighthouseVersion: null, metrics: [], field: null });
       noteBoth(outcome.quota
-        ? `PageSpeed Insights quota exceeded (${strategy}): "${clip(outcome.message, 160)}". ${ctx.options.psiKey ? 'The key\'s daily quota is used up; try again later.' : 'Without an API key, requests share Google\'s quota; pass --psi-key or set PSI_API_KEY (Google recommends a key for automated queries).'} The rest of the report is unaffected.`
+        ? `PageSpeed Insights quota exceeded (${strategy}). ${ctx.options.psiKey ? 'The key\'s daily quota is used up; try again later.' : 'Without an API key, requests share Google\'s quota; pass --psi-key or set PSI_API_KEY (Google recommends a key for automated queries).'} The rest of the report is unaffected.`
         : `PageSpeed Insights failed (${strategy}): ${clip(outcome.message, 200)}. The rest of the report is unaffected.`);
       continue;
     }
