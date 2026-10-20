@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-21
+
+### Changed
+
+- Published from GitHub Actions through npm trusted publishing, with a
+  provenance attestation linking the package to this repository. No code changes.
+
 ## [0.1.0] - 2026-10-21
 
 ### Added
@@ -17,5 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SSRF guard: http(s) only; private, loopback, link-local and metadata addresses refused (also after redirects, and for names that resolve to them with `resolveHost`); caps on redirects, body size, time and links. The CLI allows `localhost`, `127.0.0.1` and `::1` so you can audit a dev server.
 - API: `audit`, `formatReport`, the facts each rule relies on with their sources, and `@bydtech/site-audit/node` with a `node:dns` resolver. The main entry uses web-standard APIs only.
 
-[Unreleased]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/BYDTechSolutions/site-audit/releases/tag/v0.1.0
+[Unreleased]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/BYDTechSolutions/site-audit/releases/tag/v0.1.1
+[0.1.0]: https://github.com/BYDTechSolutions/site-audit/tree/fde13b6d018830fcd9eec39a1f58f2f5149f90a4
