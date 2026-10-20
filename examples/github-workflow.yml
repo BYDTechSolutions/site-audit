@@ -1,0 +1,22 @@
+# .github/workflows/site-audit.yml — audit a deployed URL on every push to main
+# and fail the job when anything is "Fix now". The HTML report is kept as an artifact.
+name: Site audit
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npx @bydtech/site-audit https://staging.example.com --out report.html --fail-on fix-now
+        env:
+          PSI_API_KEY: ${{ secrets.PSI_API_KEY }}
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-audit-report
+          path: report.html
