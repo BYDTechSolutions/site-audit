@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-21
+
+### Added
+
+- Text compression check, measured directly so it runs without a PageSpeed
+  key: the page and up to 8 same-origin stylesheets and scripts. A text
+  response with no br/gzip/deflate/zstd Content-Encoding is flagged when gzip
+  would shrink it (Lighthouse's cut-offs: at least about 1.4 KiB and a 10%
+  saving), with the size it would have gzipped. When `Cache-Control:
+  no-transform` is present, the finding says it stops CDNs such as Cloudflare
+  from compressing. On a local dev server it is a reminder, not a fix.
+
+### Fixed
+
+- "so speed were not measured" now reads "so speed was not measured".
+
 ## [0.1.2] - 2026-10-21
 
 ### Changed
@@ -40,7 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SSRF guard: http(s) only; private, loopback, link-local and metadata addresses refused (also after redirects, and for names that resolve to them with `resolveHost`); caps on redirects, body size, time and links. The CLI allows `localhost`, `127.0.0.1` and `::1` so you can audit a dev server.
 - API: `audit`, `formatReport`, the facts each rule relies on with their sources, and `@bydtech/site-audit/node` with a `node:dns` resolver. The main entry uses web-standard APIs only.
 
-[Unreleased]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/BYDTechSolutions/site-audit/releases/tag/v0.1.1
 [0.1.0]: https://github.com/BYDTechSolutions/site-audit/tree/fde13b6d018830fcd9eec39a1f58f2f5149f90a4

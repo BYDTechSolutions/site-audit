@@ -62,7 +62,8 @@ describe('PageSpeed Insights', () => {
     const r = await run(() => json(fixture('psi-quota-429.json'), 429));
     expect(r.data.speed?.[0]?.error).toMatch(/Quota exceeded/);
     expect(r.notes.find((n) => n.area === 'speed')?.message).toMatch(/quota exceeded.*--psi-key or set PSI_API_KEY/i);
-    expect(r.findings.filter((f) => f.area === 'speed')).toEqual([]);
+    // Only the compression check (which needs no PSI) may report speed findings here.
+    expect(r.findings.filter((f) => f.area === 'speed' && !f.id.includes('compress'))).toEqual([]);
   });
 
   it('never prints the API key in errors', async () => {

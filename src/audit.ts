@@ -1,4 +1,5 @@
 import { checkAiCrawlers } from './checks/ai-crawlers.js';
+import { checkCompression } from './checks/compression.js';
 import { checkIndexability } from './checks/indexability.js';
 import { checkLinks } from './checks/links.js';
 import { checkLlmsTxt } from './checks/llms-txt.js';
@@ -38,6 +39,7 @@ const CHECKS: { area: Area; run: (ctx: AuditContext) => Promise<void> }[] = [
   { area: 'tags', run: checkTags },
   { area: 'ai-crawlers', run: checkAiCrawlers },
   { area: 'links', run: checkLinks },
+  { area: 'speed', run: checkCompression },
 ];
 
 /**

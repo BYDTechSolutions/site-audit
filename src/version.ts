@@ -1,5 +1,5 @@
 /** The package version. Kept equal to package.json by a test. */
-export const VERSION = '0.1.2';
+export const VERSION = '0.1.3';
 
 /** The product token this tool uses in its `User-Agent` and to read robots.txt rules meant for it. */
 export const PRODUCT_TOKEN = 'site-audit';

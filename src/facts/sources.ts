@@ -29,6 +29,8 @@ export const SOURCES = {
   psiGetStarted: s('Google: Get started with the PageSpeed Insights API', 'https://developers.google.com/speed/docs/insights/v5/get-started'),
   webVitals: s('web.dev: Web Vitals', 'https://web.dev/articles/vitals'),
   lighthouseInsights: s('Chrome for Developers: Lighthouse is moving to performance insights', 'https://developer.chrome.com/blog/moving-lighthouse-to-insights'),
+  lighthouseTextCompression: s('Chrome for Developers: Enable text compression (Lighthouse)', 'https://developer.chrome.com/docs/lighthouse/performance/uses-text-compression'),
+  cloudflareCompression: s('Cloudflare: Content compression (cache-control: no-transform disables it)', 'https://developers.cloudflare.com/speed/optimization/content/compression/'),
   lighthouseA11y: s('Chrome for Developers: Lighthouse accessibility audits', 'https://developer.chrome.com/docs/lighthouse/accessibility/'),
   a11yReview: s('web.dev: How to do an accessibility review', 'https://web.dev/articles/how-to-review'),
   ogp: s('The Open Graph protocol', 'https://ogp.me/'),

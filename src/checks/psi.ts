@@ -115,11 +115,11 @@ export async function checkPsi(ctx: AuditContext, areas: { speed: boolean; acces
   // One note for the run, filed under the first area asked for.
   const noteBoth = (message: string) => ctx.note(areas.speed ? 'speed' : 'accessibility', message);
   if (!ctx.options.psi) {
-    noteBoth(`PageSpeed Insights was skipped (--no-psi), so ${label} were not measured.`);
+    noteBoth(`PageSpeed Insights was skipped (--no-psi), so ${label} ${areas.speed && areas.accessibility ? 'were' : 'was'} not measured.`);
     return;
   }
   if (classifyHostname(ctx.pageUrl.hostname.replace(/^\[|\]$/g, ''))) {
-    noteBoth(`PageSpeed Insights runs on Google's servers and cannot reach ${ctx.pageUrl.host}, so ${label} were not measured. Run Lighthouse locally, or audit the deployed URL.`);
+    noteBoth(`PageSpeed Insights runs on Google's servers and cannot reach ${ctx.pageUrl.host}, so ${label} ${areas.speed && areas.accessibility ? 'were' : 'was'} not measured. Run Lighthouse locally, or audit the deployed URL.`);
     return;
   }
   const categories = [areas.speed && 'PERFORMANCE', areas.accessibility && 'ACCESSIBILITY'].filter(Boolean) as string[];
