@@ -32,7 +32,8 @@ export const HELP = `Usage: site-audit <url> [options]
 Audits one page: indexability, meta & link previews, structured data, AI
 crawler access, robots.txt & sitemaps, llms.txt, speed, accessibility,
 security headers, installed tags and broken links. Prints a fix list grouped
-into Fix now / Should fix / Nice to have. No sign-up, no config, no score.
+into Fix now / Should fix / Nice to have. No sign-up, no config, and no
+score of our own (with a PageSpeed key, Google's Lighthouse scores are shown).
 
 Examples:
   npx @bydtech/site-audit https://example.com

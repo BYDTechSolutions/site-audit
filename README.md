@@ -10,7 +10,7 @@ One honest website audit from the terminal: SEO, AI-crawler access, structured d
 npx @bydtech/site-audit https://example.com
 ```
 
-No config, no sign-up, no score. Node.js 20 or later.
+No config, no sign-up, no score of our own. Node.js 20 or later.
 
 ```text
 Site audit: https://example.com/start
@@ -66,7 +66,7 @@ AI CRAWLER ACCESS  (robots.txt verdict for this URL, and one request per user ag
 
 ## Why it exists
 
-A site owner who wants to know "is my site OK?" ends up in six free tools: PageSpeed, a schema validator, a link-preview checker, a header grader, a robots.txt tester and an "AI visibility" checker, most of them behind an email form and most of them ending in a single 0–100 score that hides which problem actually matters. This runs all of those checks on one URL in one go, ranks what it finds as **Fix now / Should fix / Nice to have**, and labels every item with its evidence:
+A site owner who wants to know "is my site OK?" ends up in six free tools: PageSpeed, a schema validator, a link-preview checker, a header grader, a robots.txt tester and an "AI visibility" checker, most of them behind an email form and most of them ending in a single 0–100 score that hides which problem actually matters. This runs all of those checks on one URL in one go, ranks what it finds as **Fix now / Should fix / Nice to have**, and labels every item with its evidence (Google's own Lighthouse scores appear too, labeled as Google's lab score, next to the fix list that says what to do about them):
 
 - **Measured**: we observed it on your site during this run.
 - **Google-documented**: Google's own documentation says it matters (the source links to the page).
@@ -115,6 +115,17 @@ npx @bydtech/site-audit https://staging.example.com --fail-on fix-now --no-psi
 
 Speed and accessibility come from Google's [PageSpeed Insights API](https://developers.google.com/speed/docs/insights/v5/get-started), which runs Lighthouse on Google's servers. The tool always tries it, with or without a key. Without one, requests share Google's anonymous quota: when we tested on 2026-10-21, those requests were refused with `429 Quota exceeded`. The report still renders and says so in its notes, and the text-compression check, which needs no key, still runs. To get speed and accessibility results, create a free API key in the Google Cloud console (the "Get started" page above explains how) and pass it with `--psi-key` or the `PSI_API_KEY` environment variable. Google recommends a key for automated queries.
 
+### What the speed section shows
+
+Per strategy (mobile, and desktop with `--desktop`), the way pagespeed.web.dev lays it out:
+
+- **Google's Lighthouse scores**: performance, accessibility, best practices and SEO (0–100), and agentic browsing as audits passed (for example `2/3`, the way Lighthouse shows that category). They are labeled as what they are: Google's Lighthouse lab score for one simulated load, which varies from run to run. They are data: they never change a finding or its priority, and the report adds no overall score of its own. The HTML report shows them as a compact row under the summary and as rings in the speed section, in Lighthouse's color bands (90–100 good, 50–89 needs improvement, 0–49 poor).
+- **Lab metrics**, colored by Google's Core Web Vitals thresholds where the metric is one (LCP, CLS), otherwise by the score Lighthouse gave the metric; and **field data** from the Chrome UX Report when there is enough real-user traffic.
+- **Every failing insight and diagnostic** with its resource table (up to 15 rows, with a count of the rest), in the HTML and Markdown reports and in `data.speed[].insights`.
+- **Screenshots**: the filmstrip, the final frame and the full page. They are kept only for the HTML report or with `--screenshots` (API: `screenshots: true`), because they add hundreds of KB to a few MB. A full-page screenshot larger than 1.5 MB (`fullPageScreenshotMaxBytes`) is left out with a note.
+
+The HTML report stays one file with no scripts: the Mobile/Desktop switch is CSS only, and every image has alt text, so the page reads without them.
+
 ## CLI reference
 
 ```text
@@ -128,6 +139,7 @@ site-audit <url> [options]
 | `--psi-key <key>` | `$PSI_API_KEY` | PageSpeed Insights API key. |
 | `--no-psi` | PSI on | Skip PageSpeed Insights: no speed or accessibility results. |
 | `--desktop` | mobile only | Also run PageSpeed Insights for desktop. |
+| `--screenshots` | on for `html` only | Keep PSI's screenshots (filmstrip, final frame, full page) in the report, e.g. in `--format json`. |
 | `--only <areas>` | all | Comma-separated areas: `indexability`, `meta`, `structured-data`, `ai-crawlers`, `robots-sitemaps`, `llms-txt`, `speed`, `accessibility`, `security`, `tags`, `links`. |
 | `--fail-on <level>` | off | Exit 1 when any finding is at `fix-now`, or at `should-fix` or above. |
 | `--max-links <n>` | `100` | Most links on the page to check. |
@@ -170,10 +182,10 @@ A `Report` has:
 | `findings: Finding[]` | Sorted by priority, then area. |
 | `passed: Passed[]` | Checks that ran and found nothing (`{ id, area, title }`). |
 | `notes: Note[]` | What the reader should know about the run: skipped areas, quota errors, limits. |
-| `data` | The share-card preview, the AI-crawler table, PSI lab and field metrics, detected tags, link and sitemap totals. |
+| `data` | The share-card preview, the AI-crawler table, PSI per strategy (Google's Lighthouse scores, lab and field metrics, failing insights with their tables, and screenshots when asked), detected tags, link and sitemap totals. |
 | `areas`, `startedAt`, `durationMs`, `tool` | Run metadata. |
 
-A `Finding` is `{ id, area, priority, label, title, observed, why, fix, source: { title, url }, details? }`. `id` is stable (`indexability/noindex`, `ai-crawlers/firewall-blocks`, ...), so you can filter or baseline on it. There is no score field, on purpose.
+A `Finding` is `{ id, area, priority, label, title, observed, why, fix, source: { title, url }, details? }`. `id` is stable (`indexability/noindex`, `ai-crawlers/firewall-blocks`, ...), so you can filter or baseline on it. Findings carry no score. `data.speed[].scores` holds Google's Lighthouse category scores, shown as Google's lab score; they never change a finding's priority.
 
 ### Other exports
 
@@ -181,6 +193,7 @@ A `Finding` is `{ id, area, priority, label, title, observed, why, fix, source: 
 - `normalizeUrl(input)`: adds `https://` (or `http://` for local hosts).
 - `SiteAuditError`, and the types `Report`, `Finding`, `AuditOptions`, `Area`, `Priority`, `Label` and the rest.
 - The facts the rules use, with their sources: `BOTS`, `RICH_RESULT_TYPES`, `RETIRED_TYPES`, `CORE_WEB_VITALS`, `TAG_SIGNATURES`, `SOURCES`, `FACTS_VERIFIED_ON`.
+- For a speed view of your own: `rateLabMetric`, `rateLighthouseScore`, `rateCwv`, `labThreshold`, `SPEED_CATEGORIES` (the PSI categories requested) and `INSIGHT_ROW_CAP`.
 - Helpers: `parseRobots`, `robotsVerdict`, `detectTags`, `classifyHostname`, `classifyIp`.
 - `@bydtech/site-audit/node`: `resolveHost`, a resolver built on `node:dns`.
 
@@ -195,6 +208,8 @@ Every `AuditOptions` field is optional:
 | `psiKey` | none | PageSpeed Insights API key. |
 | `psi` | `true` | Run PageSpeed Insights. |
 | `strategies` | `['mobile']` | `'mobile'` and/or `'desktop'`. |
+| `screenshots` | `false` | Keep PSI's filmstrip, final frame and full-page screenshot as `data:` URIs in `data.speed[].screenshots`. |
+| `fullPageScreenshotMaxBytes` | `1500000` | Largest full-page screenshot kept (length of its `data:` URI); a larger one is left out with a note. |
 | `only` | all areas | Areas to run. |
 | `maxLinks` | `100` | Most links to check. |
 | `linkConcurrency` | `4` | Link checks at once. |
@@ -219,7 +234,7 @@ One URL, no crawl. The page is fetched once with a `User-Agent` that names this 
 | AI crawler access | Per crawler, the robots.txt verdict for this URL, and one request with its user agent compared with a normal request (refused, challenged with `cf-mitigated: challenge`, or a much smaller page with a different title) | Measured (the probe is indicative: real bots come from their own IP ranges) |
 | robots.txt & sitemaps | robots.txt status, size (500 KiB), lines Google ignores, rules outside a group; declared sitemaps (or `/sitemap.xml`), sitemap indexes and gzip, validity, the 50,000-URL / 50 MB limits, relative URLs, `lastmod` sanity, whether this page is listed | Measured |
 | llms.txt | Present? Linted against the proposal with [`@bydtech/llms-txt`](https://github.com/BYDTechSolutions/llms-txt) | Optional / speculative |
-| Speed | Text compression of the page and its same-origin CSS and JavaScript (measured directly, no key needed; names `Cache-Control: no-transform` when it is what stops a CDN compressing). With a PageSpeed key: Lighthouse lab metrics, what holds each one back, failing insights with the resources they name, and Chrome UX Report field data when Google has enough real-user traffic, otherwise "not enough real-user traffic for field data" | Measured (lab) / Google-documented (field thresholds) |
+| Speed | Text compression of the page and its same-origin CSS and JavaScript (measured directly, no key needed; names `Cache-Control: no-transform` when it is what stops a CDN compressing). With a PageSpeed key: Google's Lighthouse category scores (shown as Google's lab score, never a priority), Lighthouse lab metrics, what holds each one back, failing insights with the resources they name and their tables, screenshots for the HTML report, and Chrome UX Report field data when Google has enough real-user traffic, otherwise "not enough real-user traffic for field data" | Measured (lab) / Google-documented (field thresholds) |
 | Accessibility | Failing Lighthouse accessibility audits from the same PSI run, with the failing elements | Measured |
 | Security headers | HTTPS, HSTS, CSP (missing, report-only, `unsafe-inline`/`unsafe-eval`/wildcards), clickjacking (`frame-ancestors` / `X-Frame-Options`), `nosniff`, Referrer-Policy, Permissions-Policy, `X-XSS-Protection`, version-revealing headers, cookie flags, mixed content | Measured |
 | Installed tags | 63 MIT signatures written for this package: analytics, tag managers, ad pixels, consent managers, chat widgets, session replay and common embeds | Measured |

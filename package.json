@@ -1,6 +1,6 @@
 {
   "name": "@bydtech/site-audit",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "One honest website audit from the terminal: SEO, AI-crawler access, structured data, link previews, speed, accessibility, security headers, installed tags and broken links, as a prioritized fix list with evidence labels.",
   "keywords": [
     "seo",

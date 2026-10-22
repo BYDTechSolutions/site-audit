@@ -46,7 +46,8 @@ export function rateCwv(t: Threshold, value: number): Rating {
 /**
  * Rates a Lighthouse 0–1 score (a metric's or a category's) on Lighthouse's
  * color scale: 90–100 good, 50–89 needs improvement, 0–49 poor.
- * Source: https://developer.chrome.com/docs/lighthouse/performance/performance-scoring
+ * Source (checked 2026-10-23): https://developer.chrome.com/docs/lighthouse/performance/performance-scoring
+ * and Lighthouse's report renderer (pass at 0.9, average at 0.5).
  */
 export function rateLighthouseScore(score: number): Rating {
   return score >= 0.9 ? 'good' : score >= 0.5 ? 'needs-improvement' : 'poor';

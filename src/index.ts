@@ -15,7 +15,8 @@ export { SiteAuditError, type SiteAuditErrorCode } from './errors.js';
 export { FORMATS, formatHtml, formatMarkdown, formatReport, formatText, type ReportFormat, type TextOptions } from './render/index.js';
 export { BOTS, type BotFact } from './facts/bots.js';
 export { RETIRED_TYPES, RICH_RESULT_TYPES, type RetiredType, type RichResultType } from './facts/rich-results.js';
-export { CORE_WEB_VITALS, type Threshold } from './facts/cwv.js';
+export { CORE_WEB_VITALS, labThreshold, rateCwv, rateLabMetric, rateLighthouseScore, type Rating, type Threshold } from './facts/cwv.js';
+export { INSIGHT_ROW_CAP, SPEED_CATEGORIES } from './checks/psi.js';
 export { TAG_SIGNATURES, type TagSignature } from './facts/tags.js';
 export { FACTS_VERIFIED_ON, SOURCES } from './facts/sources.js';
 export { classifyHostname, classifyIp, isLocalDevHost } from './net/ip.js';
@@ -34,6 +35,10 @@ export {
   type FieldMetric,
   type Finding,
   type Hop,
+  type InsightColumn,
+  type InsightDetail,
+  type InsightRow,
+  type InsightTable,
   type LabMetric,
   type Label,
   type LinkSummary,
@@ -47,7 +52,10 @@ export {
   type SharePreview,
   type SitemapSummary,
   type Source,
+  type SpeedImage,
   type SpeedResult,
+  type SpeedScores,
+  type SpeedScreenshots,
   type TagCategory,
 } from './types.js';
 export { PRODUCT_TOKEN, REPO_URL, USER_AGENT, VERSION } from './version.js';

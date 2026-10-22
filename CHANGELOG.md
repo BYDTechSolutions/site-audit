@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-10-23
+
+### Added
+
+- Google's Lighthouse category scores per PSI strategy, in `data.speed[].scores`:
+  performance, accessibility, best practices and SEO as 0–100 integers, and
+  agentic browsing as `{ passed, total }`, the fraction Lighthouse shows for
+  it. `scoreSource` links to Google's explanation. They are labeled
+  everywhere as Google's Lighthouse lab score for one simulated load; they
+  are data, never change a finding or its priority, and the report still has
+  no overall score of its own. With speed, PSI is now asked for every current
+  v5 category; if it refuses `AGENTIC_BROWSING`, the run is repeated without
+  it, with a note.
+- `data.speed[].insights`: every failing insight and diagnostic with its
+  plain description, estimated savings, source and a normalized table
+  (columns, up to 15 rows with `moreRows`, URLs shortened for display with
+  the full value in `fullUrls`, elements as selector and snippet text).
+- `screenshots` option (default `false`): the final frame, the filmstrip and
+  the full-page screenshot as `data:` URIs. A full-page screenshot over
+  `fullPageScreenshotMaxBytes` (default 1.5 MB) is dropped with a note. The
+  CLI keeps screenshots for `--format html`, or with the new `--screenshots`.
+- HTML report: a compact row of Google's scores per strategy under the
+  summary, and a PageSpeed-style speed section: Mobile/Desktop as CSS-only
+  tabs (still no scripts), score rings in Lighthouse's color bands, lab
+  metric cards colored by Core Web Vitals thresholds (or Lighthouse's metric
+  score where a metric has none), the filmstrip, final and full-page
+  screenshots, and each insight with its table.
+- Text and Markdown print the score row first in each speed section;
+  Markdown also includes the insight tables.
+- Exports: `rateLabMetric`, `rateLighthouseScore`, `rateCwv`,
+  `labThreshold`, `SPEED_CATEGORIES`, `INSIGHT_ROW_CAP` and the new types.
+
+### Changed
+
+- The closing line says the scores shown are Google's Lighthouse lab scores
+  and that the fix list is what to do about them, instead of "No overall
+  score, on purpose". Findings are unchanged.
+
 ## [0.1.3] - 2026-10-21
 
 ### Added
@@ -56,7 +94,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SSRF guard: http(s) only; private, loopback, link-local and metadata addresses refused (also after redirects, and for names that resolve to them with `resolveHost`); caps on redirects, body size, time and links. The CLI allows `localhost`, `127.0.0.1` and `::1` so you can audit a dev server.
 - API: `audit`, `formatReport`, the facts each rule relies on with their sources, and `@bydtech/site-audit/node` with a `node:dns` resolver. The main entry uses web-standard APIs only.
 
-[Unreleased]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/BYDTechSolutions/site-audit/releases/tag/v0.1.1
