@@ -1,5 +1,5 @@
 import { AREA_NAMES, LABEL_NAMES, PRIORITY_NAMES, type Priority, type Report } from '../types.js';
-import { areaName, byPriority, counts, duration, NO_SCORE, probeCell, robotsCell } from './common.js';
+import { areaName, byPriority, counts, duration, footerLine, probeCell, robotsCell, scoreNote, scoreLine } from './common.js';
 
 /** Options for {@link formatText}. */
 export interface TextOptions {
@@ -89,11 +89,18 @@ export function formatText(report: Report, options: TextOptions = {}): string {
     out.push(field('Image', img ? `${img.url}${img.width ? ` (${img.width}×${img.height})` : ''}${img.status && img.status !== 200 ? ` — HTTP ${img.status}` : ''}` : '(none)'));
   }
 
+  let scoreNoted = false;
   for (const s of report.data.speed ?? []) {
     out.push('', bold(`SPEED (PageSpeed Insights, ${s.strategy}${s.lighthouseVersion ? `, Lighthouse ${s.lighthouseVersion}` : ''})`));
     if (s.error) {
       out.push(wrap(`Not measured: ${s.error}`, width, '    ', '  '));
       continue;
+    }
+    const scores = scoreLine(s);
+    if (scores) {
+      out.push(wrap(scores, width, '    ', '  '));
+      if (!scoreNoted) out.push(dim(wrap(scoreNote('above'), width, '  ', '  ')));
+      scoreNoted = true;
     }
     out.push(`  Lab: ${s.metrics.map((m) => `${m.title} ${m.displayValue}`).join(' · ')}`);
     if (s.field) {
@@ -129,7 +136,7 @@ export function formatText(report: Report, options: TextOptions = {}): string {
     out.push('', bold('NOTES'));
     for (const note of report.notes) out.push(wrap(`- [${areaName(note.area)}] ${note.message}`, width, '    ', '  '));
   }
-  out.push('', dim(NO_SCORE));
+  out.push('', dim(footerLine(report)));
   out.push(dim(`${report.tool.name} ${report.tool.version} · ${report.tool.url}`));
   return out.join('\n') + '\n';
 }

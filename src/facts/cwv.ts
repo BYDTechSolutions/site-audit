@@ -52,13 +52,19 @@ export function rateLighthouseScore(score: number): Rating {
   return score >= 0.9 ? 'good' : score >= 0.5 ? 'needs-improvement' : 'poor';
 }
 
+/** The Core Web Vitals threshold for a Lighthouse lab metric id, if the metric is one. */
+export function labThreshold(id: string): Threshold | undefined {
+  return CORE_WEB_VITALS.find((x) => x.metric === LAB_CWV[id]);
+}
+
 /**
  * Rates one lab metric: by Google's Core Web Vitals threshold when the metric
  * is one (LCP, CLS, INP; `numericValue` in ms, or unitless for CLS), otherwise
  * by the metric score Lighthouse gave it. `null` when there is neither.
  */
+
 export function rateLabMetric(id: string, numericValue: number | null, score: number | null): { rating: Rating; basis: 'core-web-vitals' | 'lighthouse' } | null {
-  const t = CORE_WEB_VITALS.find((x) => x.metric === LAB_CWV[id]);
+  const t = labThreshold(id);
   if (t && typeof numericValue === 'number' && Number.isFinite(numericValue)) return { rating: rateCwv(t, numericValue), basis: 'core-web-vitals' };
   if (typeof score === 'number') return { rating: rateLighthouseScore(score), basis: 'lighthouse' };
   return null;

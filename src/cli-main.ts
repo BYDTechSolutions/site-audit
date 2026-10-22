@@ -46,6 +46,7 @@ Options:
       --psi-key <key>    PageSpeed Insights API key (or set PSI_API_KEY)
       --no-psi           skip PageSpeed Insights (no speed or accessibility data)
       --desktop          also run PageSpeed Insights for desktop (mobile always runs)
+      --screenshots      keep PSI's screenshots in the report (on by default for html)
       --only <areas>     comma-separated areas: ${AREAS.join(', ')}
       --fail-on <level>  exit 1 if any finding is at this level or above: fix-now or should-fix
       --max-links <n>    most links to check on the page (default 100)
@@ -78,6 +79,7 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
         'psi-key': { type: 'string' },
         'no-psi': { type: 'boolean' },
         desktop: { type: 'boolean' },
+        screenshots: { type: 'boolean' },
         only: { type: 'string' },
         'fail-on': { type: 'string' },
         'max-links': { type: 'string' },
@@ -162,6 +164,8 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
     psi: !values['no-psi'],
     psiKey: values['psi-key'] || io.env.PSI_API_KEY || undefined,
     strategies: values.desktop ? ['mobile', 'desktop'] : ['mobile'],
+    // Screenshots add hundreds of KB to a few MB: only for the HTML report, which shows them, or when asked.
+    screenshots: format === 'html' || !!values.screenshots,
     only,
     maxLinks,
     timeoutMs,

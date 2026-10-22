@@ -114,4 +114,19 @@ describe('cli', () => {
     expect(await run([], {})).toBe(0);
     expect(keys).toEqual(['env-key', 'flag-key', null]);
   });
+
+  it('keeps PSI screenshots for html or --screenshots only, and never prints base64 as text', async () => {
+    const run = async (args: string[]) => {
+      const t = io();
+      t.value.auditOptions = { probeDelayMs: 0, resolveHost: fakeResolver(), fetch: siteFetch(psiSite, () => json(fixture('psi-mobile.json'))) };
+      expect(await main(['https://site.test/', '--only', 'speed', ...args], t.value)).toBe(0);
+      return t.out();
+    };
+    const text = await run([]);
+    expect(text).toContain('Lighthouse performance (Google lab score): 41 / 100');
+    expect(text).not.toContain('base64');
+    expect(JSON.parse(await run(['--format', 'json'])).data.speed[0].screenshots).toBeUndefined();
+    expect(JSON.parse(await run(['--format', 'json', '--screenshots'])).data.speed[0].screenshots.filmstrip).toHaveLength(3);
+    expect(await run(['--format', 'html'])).toContain('src="data:image/jpeg;base64,RlJBTUUtMQ=="');
+  });
 });
