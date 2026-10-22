@@ -80,6 +80,8 @@ export async function audit(input: string, options: AuditOptions = {}): Promise<
     psiTimeoutMs: options.psiTimeoutMs ?? 120_000,
     probeDelayMs: options.probeDelayMs ?? 250,
     probeCrawlers: options.probeCrawlers ?? true,
+    screenshots: options.screenshots ?? false,
+    fullPageScreenshotMaxBytes: Math.max(0, options.fullPageScreenshotMaxBytes ?? 1_500_000),
   };
 
   options.onProgress?.(`Fetching ${url}`);

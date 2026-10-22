@@ -30,6 +30,8 @@ export interface CheckOptions {
   psiTimeoutMs: number;
   probeDelayMs: number;
   probeCrawlers: boolean;
+  screenshots: boolean;
+  fullPageScreenshotMaxBytes: number;
 }
 
 /** What every check receives. */

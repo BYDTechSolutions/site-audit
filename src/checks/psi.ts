@@ -8,7 +8,7 @@ import { describeThresholds } from '../facts/cwv.js';
 import { SOURCES } from '../facts/sources.js';
 import { decodeText, safeFetch } from '../net/fetcher.js';
 import { classifyHostname } from '../net/ip.js';
-import type { FieldMetric, LabMetric, Source, SpeedResult } from '../types.js';
+import type { FieldMetric, InsightColumn, InsightDetail, InsightRow, InsightTable, LabMetric, Source, SpeedImage, SpeedResult, SpeedScores, SpeedScreenshots } from '../types.js';
 
 /** The endpoint from Google's "Get started" page. */
 export const PSI_ENDPOINT = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed';
@@ -59,6 +59,160 @@ function insightResources(audit: Json): string[] {
     .filter((u): u is string => typeof u === 'string' && u.length > 0)
     .map((u) => clip(u, 140));
   return [...new Set(urls)];
+}
+
+/** Most rows kept per insight table; the rest are counted in `moreRows`. */
+export const INSIGHT_ROW_CAP = 15;
+
+/**
+ * A URL for a table cell: the path for the audited page's own origin, host and
+ * path otherwise, cut in the middle past `max` characters.
+ */
+export function shortUrl(url: string, pageOrigin: string, max = 72): string {
+  let s = url;
+  if (url.startsWith('data:')) return clip(url, 32);
+  try {
+    const u = new URL(url);
+    if (u.protocol === 'http:' || u.protocol === 'https:') s = u.origin === pageOrigin ? `${u.pathname}${u.search}` || '/' : `${u.host}${u.pathname === '/' && !u.search ? '' : u.pathname}${u.search}`;
+  } catch {
+    // not a URL: keep it as written
+  }
+  s = s.replace(/\s+/g, ' ');
+  if (s.length <= max) return s;
+  const head = Math.ceil(max * 0.6);
+  return `${s.slice(0, head)}…${s.slice(s.length - (max - head - 1))}`;
+}
+
+const URL_TYPES = new Set(['url', 'source-location', 'link']);
+const SKIP_TYPES = new Set(['thumbnail', 'debugdata']);
+
+/** One table cell as plain text or a number, plus the full URL behind a shortened one. */
+function cellOf(value: Json, type: string, origin: string): { v: string | number | null; full?: string } {
+  if (value === null || value === undefined) return { v: null };
+  const asUrl = (url: string, suffix = '') => {
+    const full = /^https?:\/\//i.test(url) ? url.slice(0, 2048) : undefined;
+    return { v: `${shortUrl(url, origin)}${suffix}`, full };
+  };
+  if (typeof value === 'number') return { v: Number.isFinite(value) ? value : null };
+  if (typeof value === 'boolean') return { v: value ? 'yes' : 'no' };
+  if (typeof value === 'string') return URL_TYPES.has(type) ? asUrl(value) : { v: clip(value, 200) };
+  if (typeof value !== 'object') return { v: null };
+  switch (value.type) {
+    case 'node': {
+      const name = String(value.selector ?? value.nodeLabel ?? '');
+      const text = `${clip(name, 120)}${value.snippet ? `${name ? ' — ' : ''}${clip(String(value.snippet), 100)}` : ''}`;
+      return { v: text || null };
+    }
+    case 'source-location':
+      return typeof value.url === 'string' ? asUrl(value.url, typeof value.line === 'number' ? `:${value.line + 1}` : '') : { v: null };
+    case 'url':
+      return typeof value.value === 'string' ? asUrl(value.value) : { v: null };
+    case 'link': {
+      const text = clip(String(value.text ?? value.url ?? ''), 120);
+      return { v: text || null, full: typeof value.url === 'string' && /^https?:\/\//i.test(value.url) ? value.url.slice(0, 2048) : undefined };
+    }
+    case 'numeric':
+      return { v: typeof value.value === 'number' && Number.isFinite(value.value) ? value.value : null };
+    case 'code':
+    case 'text':
+      return { v: value.value === undefined || value.value === null ? null : clip(String(value.value), 200) };
+    case 'baseline-status':
+      return { v: value.displayString ? clip(String(value.displayString), 80) : null };
+    default:
+      return { v: null };
+  }
+}
+
+/**
+ * Normalizes a Lighthouse `details` object into a plain table: `table` and
+ * `opportunity` as they are, the first table inside a `list` (Lighthouse 13's
+ * LCP breakdown, for one), and a `checklist` as check / passed rows. Other
+ * shapes (network trees, filmstrips) have no table.
+ */
+export function insightTable(details: Json, pageOrigin: string, cap = INSIGHT_ROW_CAP): InsightTable | undefined {
+  if (!details || typeof details !== 'object') return undefined;
+  let table: Json = null;
+  if (details.type === 'table' || details.type === 'opportunity') table = details;
+  else if (details.type === 'list' && Array.isArray(details.items)) {
+    for (const item of details.items) {
+      if (item?.type === 'table') { table = item; break; }
+      if (item?.type === 'list-section' && item.value?.type === 'table') { table = item.value; break; }
+    }
+  } else if (details.type === 'checklist' && details.items && typeof details.items === 'object') {
+    const entries = Object.values(details.items as Record<string, Json>);
+    table = {
+      headings: [{ key: 'label', label: 'Check', valueType: 'text' }, { key: 'value', label: 'Passed', valueType: 'text' }],
+      items: entries.map((e) => ({ label: e?.label, value: e?.value })),
+    };
+  }
+  if (!table || !Array.isArray(table.headings) || !Array.isArray(table.items) || !table.items.length) return undefined;
+  const columns: InsightColumn[] = (table.headings as Json[])
+    .filter((h) => typeof h?.key === 'string' && h.key && !SKIP_TYPES.has(h.valueType))
+    .map((h) => ({
+      key: h.key as string,
+      label: typeof h.label === 'string' && h.label ? h.label : h.valueType === 'node' ? 'Element' : h.key,
+      type: typeof h.valueType === 'string' ? h.valueType : 'text',
+    }));
+  if (!columns.length) return undefined;
+  const items: Json[] = table.items;
+  const rows: InsightRow[] = [];
+  const fullUrls: Record<string, string>[] = [];
+  for (const item of items.slice(0, Math.max(0, cap))) {
+    const row: InsightRow = {};
+    const full: Record<string, string> = {};
+    for (const col of columns) {
+      const c = cellOf(item?.[col.key], col.type, pageOrigin);
+      row[col.key] = c.v;
+      if (c.full) full[col.key] = c.full;
+    }
+    rows.push(row);
+    fullUrls.push(full);
+  }
+  return { columns, rows, fullUrls, moreRows: items.length - rows.length };
+}
+
+const DATA_IMAGE = /^data:(image\/(?:jpeg|png|webp|gif));base64,/;
+
+/** A `data:image/...;base64,` string as an image; anything else is ignored. Only the prefix is checked, to keep CPU low on large images. */
+function imageOf(data: Json): SpeedImage | undefined {
+  if (typeof data !== 'string') return undefined;
+  const m = DATA_IMAGE.exec(data.slice(0, 40));
+  return m ? { mime: m[1] as string, dataUri: data } : undefined;
+}
+
+/** The final frame, the filmstrip and the full-page screenshot, read straight from where Lighthouse puts them. */
+function screenshotsOf(ctx: AuditContext, lhr: Json, audits: Record<string, Json>, strategy: string): SpeedScreenshots | undefined {
+  const out: SpeedScreenshots = {};
+  const final = imageOf(audits['final-screenshot']?.details?.data);
+  if (final) out.final = final;
+  const frames: Json[] = audits['screenshot-thumbnails']?.details?.items ?? [];
+  const filmstrip = frames
+    .map((f) => ({ timingMs: Math.round(Number(f?.timing)), img: imageOf(f?.data) }))
+    .filter((f): f is { timingMs: number; img: SpeedImage } => !!f.img && Number.isFinite(f.timingMs));
+  if (filmstrip.length) out.filmstrip = filmstrip;
+  const shot = lhr.fullPageScreenshot?.screenshot;
+  const full = imageOf(shot?.data);
+  if (full) {
+    const cap = ctx.options.fullPageScreenshotMaxBytes;
+    if (full.dataUri.length > cap) {
+      const size = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`);
+      ctx.note('speed', `Full-page screenshot (${strategy}) left out: ${size(full.dataUri.length)} is over the ${size(cap)} cap (fullPageScreenshotMaxBytes).`);
+    } else {
+      out.fullPage = { ...full, width: Number(shot.width) || 0, height: Number(shot.height) || 0 };
+    }
+  }
+  return out.final || out.filmstrip || out.fullPage ? out : undefined;
+}
+
+/** Lighthouse category scores (0–1) as 0–100 integers; categories not run, or with a null score, are left out. */
+export function scoresOf(categories: Json): SpeedScores | undefined {
+  const pct = (c: Json) => (typeof c?.score === 'number' && Number.isFinite(c.score) ? Math.round(c.score * 100) : undefined);
+  const scores: SpeedScores = {};
+  const performance = pct(categories?.performance);
+  const accessibility = pct(categories?.accessibility);
+  if (performance !== undefined) scores.performance = performance;
+  if (accessibility !== undefined) scores.accessibility = accessibility;
+  return Object.keys(scores).length ? scores : undefined;
 }
 
 /** The PageSpeed Insights web report for a URL, where the full Lighthouse trace lives. */
@@ -145,6 +299,16 @@ export async function checkPsi(ctx: AuditContext, areas: { speed: boolean; acces
     const result: SpeedResult = { strategy, error: null, lighthouseVersion: lhr.lighthouseVersion ?? null, metrics: [], field: null };
 
     if (areas.speed) {
+      const scores = scoresOf(lhr.categories);
+      if (scores) {
+        result.scores = scores;
+        result.scoreSource = SOURCES.lighthouseScoring;
+      }
+      if (ctx.options.screenshots) {
+        const shots = screenshotsOf(ctx, lhr, audits, strategy);
+        if (shots) result.screenshots = shots;
+      }
+      const insights: InsightDetail[] = [];
       const perf = lhr.categories?.performance;
       const refs: Json[] = perf?.auditRefs ?? [];
       const report = psiReportUrl(ctx.page.url, strategy);
@@ -197,7 +361,19 @@ export async function checkPsi(ctx: AuditContext, areas: { speed: boolean; acces
           source: linkIn(a.description, SOURCES.lighthouseInsights),
           details: resources.length ? capList(resources, 5) : undefined,
         });
+        const table = insightTable(a.details, ctx.pageUrl.origin);
+        insights.push({
+          id: ref.id,
+          group: ref.group,
+          title: String(a.title ?? ref.id),
+          displayValue: String(a.displayValue ?? ''),
+          metricSavings: Object.fromEntries(Object.entries(savings).filter(([, v]) => typeof v === 'number' && Number.isFinite(v))),
+          description: plain(a.description),
+          source: linkIn(a.description, SOURCES.lighthouseInsights),
+          ...(table ? { table } : {}),
+        });
       }
+      result.insights = insights;
 
       const page = json.loadingExperience;
       const origin = json.originLoadingExperience;

@@ -229,6 +229,69 @@ export interface FieldMetric {
   category: string;
 }
 
+/**
+ * Google's Lighthouse category scores for one PSI run, 0–100. They are
+ * Google's lab score for one simulated load, carried as data: they never
+ * change a finding or its priority, and the report has no score of its own.
+ */
+export interface SpeedScores {
+  performance?: number;
+  accessibility?: number;
+}
+
+/** An image as a `data:` URI, as PSI returns it. */
+export interface SpeedImage {
+  /** e.g. `image/jpeg`, `image/webp`. */
+  mime: string;
+  dataUri: string;
+}
+
+/** Screenshots from one PSI run. Only present when `screenshots: true`. */
+export interface SpeedScreenshots {
+  /** The last frame of the load. */
+  final?: SpeedImage;
+  /** Frames during the load, with milliseconds from navigation start. */
+  filmstrip?: { timingMs: number; img: SpeedImage }[];
+  /** The whole page, as tall as Lighthouse captured it (left out over `fullPageScreenshotMaxBytes`). */
+  fullPage?: SpeedImage & { width: number; height: number };
+}
+
+/** One column of an insight's table. `type` is Lighthouse's `valueType` (`url`, `bytes`, `ms`, `timespanMs`, `node`, `text`, ...). */
+export interface InsightColumn {
+  key: string;
+  label: string;
+  type: string;
+}
+
+/** One row: plain values only. Numbers stay raw (bytes, milliseconds); the column type says the unit. */
+export type InsightRow = Record<string, string | number | null>;
+
+/** An insight's resource table, normalized from Lighthouse's `details`. */
+export interface InsightTable {
+  columns: InsightColumn[];
+  /** Capped (see `moreRows`). URL cells are shortened for display; `fullUrls` keeps the full value. Node cells are selector and snippet text. Nothing is escaped: renderers must. */
+  rows: InsightRow[];
+  /** Same length as `rows`: for each row, the full URL behind each shortened URL cell, by column key. */
+  fullUrls: Record<string, string>[];
+  /** Rows Lighthouse listed beyond the cap. */
+  moreRows: number;
+}
+
+/** A failing Lighthouse insight or diagnostic, with what PSI shows for it. */
+export interface InsightDetail {
+  /** The Lighthouse audit id, e.g. `render-blocking-insight`. */
+  id: string;
+  group: 'insights' | 'diagnostics';
+  title: string;
+  displayValue: string;
+  /** Estimated savings per metric (`LCP`, `FCP`, `TBT`, `CLS`), as Lighthouse reports them. */
+  metricSavings: Record<string, number>;
+  /** Plain text, without Markdown links or the closing "Learn more" sentence. */
+  description: string;
+  source: Source;
+  table?: InsightTable;
+}
+
 /** The speed part of the report, per strategy. */
 export interface SpeedResult {
   strategy: 'mobile' | 'desktop';
@@ -242,6 +305,14 @@ export interface SpeedResult {
     overallCategory: string | null;
     metrics: FieldMetric[];
   } | null;
+  /** Google's Lighthouse category scores (0–100 integers) for the categories this run measured. */
+  scores?: SpeedScores;
+  /** What the scores are and where Google explains them. Present with `scores`. */
+  scoreSource?: Source;
+  /** Screenshots, only when the audit ran with `screenshots: true`. */
+  screenshots?: SpeedScreenshots;
+  /** Every failing insight and diagnostic, with its table. */
+  insights?: InsightDetail[];
 }
 
 /** Totals from the broken-link check. */
@@ -320,6 +391,13 @@ export interface AuditOptions {
   psi?: boolean;
   /** PSI strategies. Default `['mobile']`. */
   strategies?: ('mobile' | 'desktop')[];
+  /**
+   * Keep PSI's screenshots (final frame, filmstrip, full page) in the report,
+   * as `data:` URIs. Default `false`: they add hundreds of KB to a few MB.
+   */
+  screenshots?: boolean;
+  /** Largest full-page screenshot kept, as the length of its `data:` URI. Default `1_500_000`; over it the image is dropped with a note. */
+  fullPageScreenshotMaxBytes?: number;
   /** Only these areas. Default: all. */
   only?: Area[];
   /** Most links to check on the page. Default `100`. */

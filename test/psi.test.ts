@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { audit } from '../src/audit.js';
-import { fieldMetricName, plain, psiReportUrl, psiRequestUrl } from '../src/checks/psi.js';
+import { fieldMetricName, INSIGHT_ROW_CAP, insightTable, plain, psiReportUrl, psiRequestUrl, scoresOf, shortUrl } from '../src/checks/psi.js';
 import { fakeResolver, fixture, json, siteFetch, startServer, type TestServer } from './helpers.js';
 import { goodSite } from './sites.js';
 
@@ -124,5 +124,136 @@ describe('PageSpeed Insights', () => {
   it('names field metrics from their keys', () => {
     expect(fieldMetricName('LARGEST_CONTENTFUL_PAINT_MS')).toBe('Largest contentful paint');
     expect(fieldMetricName('EXPERIMENTAL_TIME_TO_FIRST_BYTE')).toBe('Time to first byte (experimental)');
+  });
+});
+
+describe('PageSpeed-style speed view', () => {
+  it('maps Google\'s Lighthouse category scores to 0-100 integers, as data only', async () => {
+    const r = await run(() => json(fixture('psi-mobile.json')));
+    const speed = r.data.speed?.[0];
+    expect(speed?.scores).toEqual({ performance: 41, accessibility: 82 });
+    expect(speed?.scoreSource?.title).toMatch(/Google Lighthouse lab score, one simulated load/);
+    expect(speed?.scoreSource?.url).toBe('https://developer.chrome.com/docs/lighthouse/performance/performance-scoring');
+    // The report itself still has no score.
+    expect(Object.keys(r)).not.toContain('score');
+  });
+
+  it('rounds scores and leaves out categories that were not run or have no score', () => {
+    expect(scoresOf({ performance: { score: 0.995 }, accessibility: { score: 0.004 } })).toEqual({ performance: 100, accessibility: 0 });
+    expect(scoresOf({ performance: { score: 0.784 }, accessibility: { score: null } })).toEqual({ performance: 78 });
+    expect(scoresOf({ seo: { score: 1 } })).toBeUndefined();
+    expect(scoresOf(undefined)).toBeUndefined();
+  });
+
+  it('only scores accessibility when that category was requested', async () => {
+    const data = JSON.parse(fixture('psi-mobile.json'));
+    delete data.lighthouseResult.categories.accessibility;
+    const r = await run(() => json(data), { only: ['speed'] });
+    expect(r.data.speed?.[0]?.scores).toEqual({ performance: 41 });
+  });
+
+  it('keeps screenshots out unless asked', async () => {
+    const r = await run(() => json(fixture('psi-mobile.json')));
+    expect(r.data.speed?.[0]?.screenshots).toBeUndefined();
+    expect(JSON.stringify(r)).not.toContain('base64');
+  });
+
+  it('reads the final frame, the filmstrip and the full page with screenshots: true', async () => {
+    const r = await run(() => json(fixture('psi-mobile.json')), { screenshots: true });
+    const shots = r.data.speed?.[0]?.screenshots;
+    expect(shots?.final).toEqual({ mime: 'image/jpeg', dataUri: 'data:image/jpeg;base64,RklOQUwtU0NSRUVOU0hPVA==' });
+    expect(shots?.filmstrip?.map((f) => f.timingMs)).toEqual([300, 1500, 3000]);
+    expect(shots?.filmstrip?.[0]?.img.mime).toBe('image/jpeg');
+    expect(shots?.fullPage).toMatchObject({ mime: 'image/webp', width: 412, height: 2400 });
+  });
+
+  it('drops a full-page screenshot over the cap, with a note', async () => {
+    const r = await run(() => json(fixture('psi-mobile.json')), { screenshots: true, fullPageScreenshotMaxBytes: 20 });
+    const shots = r.data.speed?.[0]?.screenshots;
+    expect(shots?.fullPage).toBeUndefined();
+    expect(shots?.final).toBeDefined();
+    expect(r.notes.some((n) => n.area === 'speed' && /Full-page screenshot \(mobile\) left out: .* over the 1 KB cap/.test(n.message))).toBe(true);
+  });
+
+  it('ignores screenshot data that is not a data:image URI', async () => {
+    const data = JSON.parse(fixture('psi-mobile.json'));
+    data.lighthouseResult.audits['final-screenshot'].details.data = 'javascript:alert(1)';
+    data.lighthouseResult.audits['screenshot-thumbnails'].details.items[0].data = 'data:text/html;base64,PHNjcmlwdD4=';
+    data.lighthouseResult.fullPageScreenshot = null;
+    const r = await run(() => json(data), { screenshots: true, only: ['speed'] });
+    const shots = r.data.speed?.[0]?.screenshots;
+    expect(shots?.final).toBeUndefined();
+    expect(shots?.fullPage).toBeUndefined();
+    expect(shots?.filmstrip?.map((f) => f.timingMs)).toEqual([1500, 3000]);
+  });
+
+  it('carries every failing insight with a normalized table', async () => {
+    const r = await run(() => json(fixture('psi-mobile.json')), { only: ['speed'] });
+    const insights = r.data.speed?.[0]?.insights ?? [];
+    expect(insights.map((i) => i.id)).toEqual(['render-blocking-insight', 'unused-javascript', 'third-parties-insight']);
+    const blocking = insights[0];
+    expect(blocking).toMatchObject({
+      group: 'insights', title: 'Render-blocking requests', displayValue: 'Est savings of 900 ms', metricSavings: { FCP: 900, LCP: 900 },
+      description: 'Requests are blocking the first render. Deferring or inlining moves them off the critical path.',
+      source: { url: 'https://developer.chrome.com/docs/performance/insights/render-blocking' },
+    });
+    expect(blocking?.table?.columns).toEqual([
+      { key: 'url', label: 'URL', type: 'url' },
+      { key: 'totalBytes', label: 'Transfer Size', type: 'bytes' },
+      { key: 'wastedMs', label: 'Duration', type: 'timespanMs' },
+    ]);
+    expect(blocking?.table?.rows[0]).toEqual({ url: '/fonts.css', totalBytes: 4096, wastedMs: 600 });
+    expect(blocking?.table?.rows[2]).toEqual({ url: '/fonts.css', totalBytes: 4096, wastedMs: null });
+    expect(blocking?.table?.fullUrls[0]).toEqual({ url: 'https://site.test/fonts.css' });
+    expect(blocking?.table?.moreRows).toBe(0);
+    // A diagnostic with no details has no table.
+    expect(insights[1]?.group).toBe('diagnostics');
+    expect(insights[1]?.table).toBeUndefined();
+
+    const third = insights[2]?.table;
+    expect(third?.columns.map((c) => c.key)).toEqual(['entity', 'url', 'transferSize', 'mainThreadTime']); // thumbnail dropped
+    const [vendor, fonts] = third?.rows ?? [];
+    expect(String(vendor?.url)).toMatch(/^cdn\.vendor\.test\/widgets\/.*…/);
+    expect(String(vendor?.url).length).toBeLessThanOrEqual(72);
+    expect(third?.fullUrls[0]?.url).toBe('https://cdn.vendor.test/widgets/v3/bundle.min.js?build=2026-10-21&locale=en-US&features=chat,analytics,experiments');
+    expect(fonts).toEqual({ entity: 'Fonts CDN', url: 'fonts.vendor.test/css2:1', transferSize: 2048, mainThreadTime: 0 });
+    expect(third?.fullUrls[1]).toEqual({ entity: 'https://fonts.vendor.test/', url: 'https://fonts.vendor.test/css2' });
+  });
+
+  it('caps table rows and counts the rest', () => {
+    const items = Array.from({ length: 20 }, (_, i) => ({ url: `https://a.test/img-${i}.png`, wastedBytes: 1000 * i, node: { type: 'node', selector: `img.n${i}`, snippet: `<img src="img-${i}.png">` } }));
+    const t = insightTable({ type: 'opportunity', headings: [{ key: 'node', valueType: 'node', label: '' }, { key: 'url', valueType: 'url', label: 'URL' }, { key: 'wastedBytes', valueType: 'bytes', label: 'Est Savings' }, { key: null, valueType: 'text', label: 'x' }], items }, 'https://a.test');
+    expect(INSIGHT_ROW_CAP).toBe(15);
+    expect(t?.rows).toHaveLength(15);
+    expect(t?.fullUrls).toHaveLength(15);
+    expect(t?.moreRows).toBe(5);
+    expect(t?.columns.map((c) => c.label)).toEqual(['Element', 'URL', 'Est Savings']);
+    expect(t?.rows[3]).toEqual({ node: 'img.n3 — <img src="img-3.png">', url: '/img-3.png', wastedBytes: 3000 });
+  });
+
+  it('finds the table inside a list, turns a checklist into rows, and skips shapes without a table', () => {
+    const list = insightTable({ type: 'list', items: [{ type: 'list-section', value: { type: 'table', headings: [{ key: 'label', valueType: 'text', label: 'Subpart' }, { key: 'duration', valueType: 'ms', label: 'Duration' }], items: [{ label: 'Time to first byte', duration: 610 }] } }, { type: 'node', selector: 'h1' }] }, 'https://a.test');
+    expect(list?.rows).toEqual([{ label: 'Time to first byte', duration: 610 }]);
+    const checklist = insightTable({ type: 'checklist', items: { noRedirects: { value: true, label: 'Avoids redirects' }, usesCompression: { value: false, label: 'Applies text compression' } } }, 'https://a.test');
+    expect(checklist?.rows).toEqual([{ label: 'Avoids redirects', value: 'yes' }, { label: 'Applies text compression', value: 'no' }]);
+    expect(insightTable({ type: 'network-tree', chains: {} }, 'https://a.test')).toBeUndefined();
+    expect(insightTable({ type: 'table', headings: [{ key: 'url', valueType: 'url', label: 'URL' }], items: [] }, 'https://a.test')).toBeUndefined();
+    expect(insightTable(undefined, 'https://a.test')).toBeUndefined();
+  });
+
+  it('shortens URLs for display', () => {
+    expect(shortUrl('https://a.test/app.css?v=2', 'https://a.test')).toBe('/app.css?v=2');
+    expect(shortUrl('https://cdn.test/', 'https://a.test')).toBe('cdn.test');
+    expect(shortUrl('https://cdn.test/x.js', 'https://a.test')).toBe('cdn.test/x.js');
+    expect(shortUrl(`https://cdn.test/${'a'.repeat(200)}.js`, 'https://a.test', 40)).toMatch(/^cdn\.test\/a+…a+\.js$/);
+    expect(shortUrl(`https://cdn.test/${'a'.repeat(200)}.js`, 'https://a.test', 40)).toHaveLength(40);
+    expect(shortUrl(`data:image/png;base64,${'A'.repeat(500)}`, 'https://a.test').length).toBeLessThanOrEqual(32);
+  });
+
+  it('leaves every finding exactly as it was, with or without screenshots', async () => {
+    const without = await run(() => json(fixture('psi-mobile.json')), { strategies: ['mobile', 'desktop'] });
+    const withShots = await run(() => json(fixture('psi-mobile.json')), { strategies: ['mobile', 'desktop'], screenshots: true });
+    expect(withShots.findings).toEqual(without.findings);
+    expect(withShots.passed).toEqual(without.passed);
   });
 });
