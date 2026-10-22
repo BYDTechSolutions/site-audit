@@ -15,6 +15,13 @@ export const PSI_ENDPOINT = 'https://www.googleapis.com/pagespeedonline/v5/runPa
 
 type Json = any;
 
+/**
+ * The categories requested when speed is audited: every one the PSI v5
+ * `category` enum lists as current (PWA is deprecated there), so the report
+ * can show Google's full score row. AGENTIC_BROWSING is the newest.
+ */
+export const SPEED_CATEGORIES = ['PERFORMANCE', 'ACCESSIBILITY', 'BEST_PRACTICES', 'SEO', 'AGENTIC_BROWSING'] as const;
+
 /** Builds the request URL. Categories are PSI enum values (`PERFORMANCE`, `ACCESSIBILITY`). */
 export function psiRequestUrl(target: string, strategy: 'mobile' | 'desktop', categories: string[], key?: string): string {
   const params = new URLSearchParams({ url: target, strategy: strategy.toUpperCase() });
@@ -204,14 +211,48 @@ function screenshotsOf(ctx: AuditContext, lhr: Json, audits: Record<string, Json
   return out.final || out.filmstrip || out.fullPage ? out : undefined;
 }
 
-/** Lighthouse category scores (0–1) as 0–100 integers; categories not run, or with a null score, are left out. */
-export function scoresOf(categories: Json): SpeedScores | undefined {
+/**
+ * Passed / total for a category Lighthouse shows as a fraction (agentic
+ * browsing): the way Lighthouse's own report counts it. Hidden, manual,
+ * not-applicable and informative audits are not counted; an audit passes at a
+ * score of 0.9 or more.
+ */
+function fractionOf(category: Json, audits: Record<string, Json>): { passed: number; total: number } | undefined {
+  const refs: Json[] = Array.isArray(category?.auditRefs) ? category.auditRefs : [];
+  let passed = 0;
+  let total = 0;
+  for (const ref of refs) {
+    const a = audits[ref?.id];
+    if (!a || ref.group === 'hidden') continue;
+    const mode = String(a.scoreDisplayMode ?? '');
+    if (mode === 'manual' || mode === 'notApplicable' || mode === 'informative') continue;
+    total++;
+    if (mode !== 'error' && typeof a.score === 'number' && a.score >= 0.9) passed++;
+  }
+  return total ? { passed, total } : undefined;
+}
+
+/**
+ * Google's Lighthouse category scores: 0–1 scores as 0–100 integers, and a
+ * category Lighthouse displays as a fraction (`categoryScoreDisplayMode`
+ * `fraction`, PSI writes `FRACTION`) as passed / total. Categories not run, or
+ * with a null score, are left out.
+ */
+export function scoresOf(categories: Json, audits: Record<string, Json> = {}): SpeedScores | undefined {
   const pct = (c: Json) => (typeof c?.score === 'number' && Number.isFinite(c.score) ? Math.round(c.score * 100) : undefined);
   const scores: SpeedScores = {};
-  const performance = pct(categories?.performance);
-  const accessibility = pct(categories?.accessibility);
-  if (performance !== undefined) scores.performance = performance;
-  if (accessibility !== undefined) scores.accessibility = accessibility;
+  const map: [keyof SpeedScores, string][] = [['performance', 'performance'], ['accessibility', 'accessibility'], ['bestPractices', 'best-practices'], ['seo', 'seo']];
+  for (const [key, id] of map) {
+    const c = categories?.[id];
+    if (/^fraction$/i.test(String(c?.categoryScoreDisplayMode ?? ''))) continue;
+    const v = pct(c);
+    if (v !== undefined) (scores as Record<string, number>)[key] = v;
+  }
+  const agentic = categories?.['agentic-browsing'];
+  if (agentic) {
+    const f = fractionOf(agentic, audits);
+    if (f) scores.agenticBrowsing = f;
+  }
   return Object.keys(scores).length ? scores : undefined;
 }
 
@@ -276,13 +317,20 @@ export async function checkPsi(ctx: AuditContext, areas: { speed: boolean; acces
     noteBoth(`PageSpeed Insights runs on Google's servers and cannot reach ${ctx.pageUrl.host}, so ${label} ${areas.speed && areas.accessibility ? 'were' : 'was'} not measured. Run Lighthouse locally, or audit the deployed URL.`);
     return;
   }
-  const categories = [areas.speed && 'PERFORMANCE', areas.accessibility && 'ACCESSIBILITY'].filter(Boolean) as string[];
+  // With speed, every category PSI v5 offers, for Google's score row; accessibility alone needs only its own.
+  let categories = areas.speed ? [...SPEED_CATEGORIES] : ['ACCESSIBILITY'];
   const results: SpeedResult[] = [];
   let a11yDone = false;
 
   for (const strategy of ctx.options.strategies) {
     ctx.progress(`Running PageSpeed Insights (${strategy}); this usually takes 20-60 seconds`);
-    const outcome = await callPsi(ctx, strategy, categories);
+    let outcome = await callPsi(ctx, strategy, categories);
+    if (!outcome.ok && !outcome.quota && categories.includes('AGENTIC_BROWSING') && /categor|invalid value/i.test(outcome.message)) {
+      // The newest category; if this PSI deployment refuses it, run without it rather than lose the whole result.
+      categories = categories.filter((c) => c !== 'AGENTIC_BROWSING');
+      ctx.note('speed', `PageSpeed Insights refused the agentic browsing category (${strategy}), so that score is missing; the run was repeated without it.`);
+      outcome = await callPsi(ctx, strategy, categories);
+    }
     if (!outcome.ok) {
       results.push({ strategy, error: outcome.message, lighthouseVersion: null, metrics: [], field: null });
       noteBoth(outcome.quota
@@ -299,7 +347,7 @@ export async function checkPsi(ctx: AuditContext, areas: { speed: boolean; acces
     const result: SpeedResult = { strategy, error: null, lighthouseVersion: lhr.lighthouseVersion ?? null, metrics: [], field: null };
 
     if (areas.speed) {
-      const scores = scoresOf(lhr.categories);
+      const scores = scoresOf(lhr.categories, audits);
       if (scores) {
         result.scores = scores;
         result.scoreSource = SOURCES.lighthouseScoring;

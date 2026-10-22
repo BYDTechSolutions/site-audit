@@ -237,6 +237,13 @@ export interface FieldMetric {
 export interface SpeedScores {
   performance?: number;
   accessibility?: number;
+  bestPractices?: number;
+  seo?: number;
+  /**
+   * Agentic browsing (Lighthouse 13.3+). Lighthouse shows this category as a
+   * fraction of audits passed, not a 0–100 gauge, so it is kept that way.
+   */
+  agenticBrowsing?: { passed: number; total: number };
 }
 
 /** An image as a `data:` URI, as PSI returns it. */

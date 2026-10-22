@@ -80,6 +80,20 @@
           { "id": "link-in-text-block", "weight": 0, "group": "a11y-color-contrast" },
           { "id": "logical-tab-order", "weight": 0 }
         ]
+      },
+      "best-practices": { "id": "best-practices", "title": "Best Practices", "score": 0.96, "auditRefs": [] },
+      "seo": { "id": "seo", "title": "SEO", "score": 0.915, "auditRefs": [] },
+      "agentic-browsing": {
+        "id": "agentic-browsing",
+        "title": "Agentic Browsing",
+        "score": 0.67,
+        "categoryScoreDisplayMode": "FRACTION",
+        "auditRefs": [
+          { "id": "agent-accessibility-tree", "weight": 1, "group": "agent-accessibility" },
+          { "id": "webmcp-registered-tools", "weight": 1, "group": "webmcp" },
+          { "id": "cumulative-layout-shift", "weight": 1, "acronym": "CLS" },
+          { "id": "llms-txt", "weight": 1, "group": "agent-discoverability" }
+        ]
       }
     },
     "audits": {
@@ -99,6 +113,9 @@
       "image-alt": { "id": "image-alt", "title": "Image elements do not have `[alt]` attributes", "description": "Informative images need short alternative text. [Learn more about the `alt` attribute](https://dequeuniversity.com/rules/axe/4.13/image-alt).", "score": 0, "scoreDisplayMode": "binary", "details": { "type": "table", "items": [ { "node": { "type": "node", "selector": "main > img", "snippet": "<img src=\"hero.jpg\">", "nodeLabel": "main > img" } } ] } },
       "html-has-lang": { "id": "html-has-lang", "title": "`<html>` element has a `[lang]` attribute", "description": "The lang attribute tells screen readers the language. [Learn more](https://dequeuniversity.com/rules/axe/4.13/html-has-lang).", "score": 1, "scoreDisplayMode": "binary" },
       "link-in-text-block": { "id": "link-in-text-block", "title": "Links rely on color to be distinguishable.", "description": "Links need more than color. [Learn more](https://dequeuniversity.com/rules/axe/4.13/link-in-text-block).", "score": null, "scoreDisplayMode": "notApplicable" },
+      "agent-accessibility-tree": { "id": "agent-accessibility-tree", "title": "The accessibility tree is usable by agents", "description": "Agents read the accessibility tree.", "score": 1, "scoreDisplayMode": "binary" },
+      "webmcp-registered-tools": { "id": "webmcp-registered-tools", "title": "The page registers WebMCP tools", "description": "WebMCP tools let agents act.", "score": 0, "scoreDisplayMode": "binary" },
+      "llms-txt": { "id": "llms-txt", "title": "llms.txt", "description": "An llms.txt file.", "score": null, "scoreDisplayMode": "notApplicable" },
       "logical-tab-order": { "id": "logical-tab-order", "title": "The page has a logical tab order", "description": "Manual check.", "score": null, "scoreDisplayMode": "manual" }
     },
     "fullPageScreenshot": { "screenshot": { "data": "data:image/webp;base64,RlVMTC1QQUdF", "width": 412, "height": 2400 }, "nodes": { "page-0-IMG": { "id": "", "top": 120, "bottom": 400, "left": 0, "right": 412, "width": 412, "height": 280 } } }

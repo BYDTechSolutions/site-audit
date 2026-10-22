@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { audit } from '../src/audit.js';
-import { fieldMetricName, INSIGHT_ROW_CAP, insightTable, plain, psiReportUrl, psiRequestUrl, scoresOf, shortUrl } from '../src/checks/psi.js';
+import { fieldMetricName, INSIGHT_ROW_CAP, SPEED_CATEGORIES, insightTable, plain, psiReportUrl, psiRequestUrl, scoresOf, shortUrl } from '../src/checks/psi.js';
 import { fakeResolver, fixture, json, siteFetch, startServer, type TestServer } from './helpers.js';
 import { goodSite } from './sites.js';
 
@@ -77,7 +77,7 @@ describe('PageSpeed Insights', () => {
     const r = await run(() => json(data), { only: ['speed'] });
     expect(r.data.speed?.[0]?.field).toBeNull();
     expect(r.notes.some((n) => /not enough real-user traffic for field data/.test(n.message))).toBe(true);
-    expect(calls.at(-1)?.searchParams.getAll('category')).toEqual(['PERFORMANCE']);
+    expect(calls.at(-1)?.searchParams.getAll('category')).toEqual([...SPEED_CATEGORIES]);
   });
 
   it('runs desktop too when asked', async () => {
@@ -131,7 +131,7 @@ describe('PageSpeed-style speed view', () => {
   it('maps Google\'s Lighthouse category scores to 0-100 integers, as data only', async () => {
     const r = await run(() => json(fixture('psi-mobile.json')));
     const speed = r.data.speed?.[0];
-    expect(speed?.scores).toEqual({ performance: 41, accessibility: 82 });
+    expect(speed?.scores).toEqual({ performance: 41, accessibility: 82, bestPractices: 96, seo: 92, agenticBrowsing: { passed: 2, total: 3 } });
     expect(speed?.scoreSource?.title).toMatch(/Google Lighthouse lab score, one simulated load/);
     expect(speed?.scoreSource?.url).toBe('https://developer.chrome.com/docs/lighthouse/performance/performance-scoring');
     // The report itself still has no score.
@@ -141,15 +141,43 @@ describe('PageSpeed-style speed view', () => {
   it('rounds scores and leaves out categories that were not run or have no score', () => {
     expect(scoresOf({ performance: { score: 0.995 }, accessibility: { score: 0.004 } })).toEqual({ performance: 100, accessibility: 0 });
     expect(scoresOf({ performance: { score: 0.784 }, accessibility: { score: null } })).toEqual({ performance: 78 });
-    expect(scoresOf({ seo: { score: 1 } })).toBeUndefined();
+    expect(scoresOf({ pwa: { score: 1 } })).toBeUndefined();
     expect(scoresOf(undefined)).toBeUndefined();
   });
 
-  it('only scores accessibility when that category was requested', async () => {
+  it('leaves out categories PSI did not return', async () => {
     const data = JSON.parse(fixture('psi-mobile.json'));
     delete data.lighthouseResult.categories.accessibility;
+    delete data.lighthouseResult.categories['agentic-browsing'];
     const r = await run(() => json(data), { only: ['speed'] });
-    expect(r.data.speed?.[0]?.scores).toEqual({ performance: 41 });
+    expect(r.data.speed?.[0]?.scores).toEqual({ performance: 41, bestPractices: 96, seo: 92 });
+  });
+
+  it('requests every PSI v5 category with speed, and only accessibility without it', async () => {
+    calls.length = 0;
+    await run(() => json(fixture('psi-mobile.json')), { only: ['speed'] });
+    expect(calls[0]?.searchParams.getAll('category')).toEqual(['PERFORMANCE', 'ACCESSIBILITY', 'BEST_PRACTICES', 'SEO', 'AGENTIC_BROWSING']);
+    calls.length = 0;
+    const r = await run(() => json(fixture('psi-mobile.json')), { only: ['accessibility'] });
+    expect(calls[0]?.searchParams.getAll('category')).toEqual(['ACCESSIBILITY']);
+    expect(r.data.speed).toBeUndefined();
+  });
+
+  it('counts agentic browsing as passed / total, the way Lighthouse shows it', () => {
+    const audits = { a: { score: 1, scoreDisplayMode: 'binary' }, b: { score: 0.89, scoreDisplayMode: 'numeric' }, c: { score: null, scoreDisplayMode: 'manual' }, d: { score: 0, scoreDisplayMode: 'informative' }, e: { score: null, scoreDisplayMode: 'error' }, h: { score: 1, scoreDisplayMode: 'binary' } };
+    const cat = { score: 0.5, categoryScoreDisplayMode: 'fraction', auditRefs: ['a', 'b', 'c', 'd', 'e'].map((id) => ({ id, weight: 1 })).concat([{ id: 'h', weight: 0, group: 'hidden' } as never]) };
+    expect(scoresOf({ 'agentic-browsing': cat }, audits)).toEqual({ agenticBrowsing: { passed: 1, total: 3 } });
+    expect(scoresOf({ 'agentic-browsing': { ...cat, auditRefs: [{ id: 'c', weight: 1 }] } }, audits)).toBeUndefined();
+  });
+
+  it('runs again without agentic browsing if PSI refuses that category', async () => {
+    calls.length = 0;
+    const r = await run((url) => url.searchParams.getAll('category').includes('AGENTIC_BROWSING')
+      ? json({ error: { code: 400, message: 'Invalid value at \'category\' (TYPE_ENUM), "AGENTIC_BROWSING"' } }, 400)
+      : json(fixture('psi-mobile.json')), { only: ['speed'] });
+    expect(calls.map((c) => c.searchParams.getAll('category').length)).toEqual([5, 4]);
+    expect(r.data.speed?.[0]?.error).toBeNull();
+    expect(r.notes.some((n) => /refused the agentic browsing category/.test(n.message))).toBe(true);
   });
 
   it('keeps screenshots out unless asked', async () => {
