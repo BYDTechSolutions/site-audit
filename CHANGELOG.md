@@ -45,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and that the fix list is what to do about them, instead of "No overall
   score, on purpose". Findings are unchanged.
 
+### Fixed
+
+- Markdown reports print a source URL that is not http(s) as plain text instead of a link.
+
 ## [0.1.3] - 2026-10-21
 
 ### Added

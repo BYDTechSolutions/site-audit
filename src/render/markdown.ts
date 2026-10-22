@@ -7,6 +7,11 @@ const htmlText = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').r
 /** A URL safe inside `(...)` of a Markdown link; only http(s). */
 const linkUrl = (url: string) => (/^https?:\/\//i.test(url) ? url.replace(/[()\s<>]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`) : null);
 const linkText = (s: string) => inline(cell(s)).replace(/([[\]])/g, '\\$1');
+/** A Markdown link only for http(s) URLs; anything else is printed as plain text, never as a link. */
+const mdLink = (text: string, url: string) => {
+  const safe = linkUrl(url);
+  return safe ? `[${linkText(text)}](${safe})` : `${linkText(text)} (${inline(cell(url))})`;
+};
 
 /** Renders a report as GitHub-flavored Markdown. */
 export function formatMarkdown(report: Report): string {
@@ -26,7 +31,7 @@ export function formatMarkdown(report: Report): string {
       out.push(`- **What we saw:** ${inline(f.observed)}`);
       out.push(`- **Why it matters:** ${inline(f.why)}`);
       out.push(`- **How to fix:** ${inline(f.fix)}`);
-      out.push(`- **Source:** [${f.source.title}](${f.source.url})`);
+      out.push(`- **Source:** ${mdLink(f.source.title, f.source.url)}`);
       if (f.details?.length) {
         out.push('', '<details><summary>Details</summary>', '');
         for (const d of f.details) out.push(`- ${inline(d)}`);
@@ -39,7 +44,7 @@ export function formatMarkdown(report: Report): string {
   const crawlers = report.data.crawlers;
   if (crawlers?.length) {
     out.push('', '## AI crawler access', '', '| Crawler | Operator | Purpose | robots.txt | Probe |', '|---|---|---|---|---|');
-    for (const r of crawlers) out.push(`| [${r.token}](${r.source.url}) | ${r.operator} | ${r.purpose} | ${cell(robotsCell(r))} | ${cell(probeCell(r))} |`);
+    for (const r of crawlers) out.push(`| ${mdLink(r.token, r.source.url)} | ${r.operator} | ${r.purpose} | ${cell(robotsCell(r))} | ${cell(probeCell(r))} |`);
     out.push('', 'Probe results are indicative: real bots come from their own IP ranges. `*` = no full user agent is published; the probe sent one containing the token.');
   }
 

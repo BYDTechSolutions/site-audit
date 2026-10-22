@@ -62,6 +62,9 @@ describe('renderers', () => {
     expect(md).toMatch(/\*Measured · Meta & link previews\*/);
     expect(md).toMatch(/\| \[GPTBot\]\(https:\/\/x\.test\) \| OpenAI \| training \| blocked \(own group\) \| 200 ok \|/);
     expect(md).toContain('\\<title\\>');
+    // A non-http(s) source URL is printed as text, never as a Markdown link.
+    expect(md).not.toContain('](javascript:');
+    expect(md).toContain('Google (javascript:alert(1))');
   });
 
   it('json round-trips', () => {
