@@ -126,6 +126,60 @@ Per strategy (mobile, and desktop with `--desktop`), the way pagespeed.web.dev l
 
 The HTML report stays one file with no scripts: the Mobile/Desktop switch is CSS only, and every image has alt text, so the page reads without them.
 
+## In CI: a GitHub Action
+
+One step audits a page, prints the report in the log, adds it to the job summary, and fails the job on anything in "Fix now". Point it at a staging or preview URL, or at your app started in an earlier step:
+
+```yaml
+# .github/workflows/site-audit.yml
+name: Site audit
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: BYDTechSolutions/site-audit@v0
+        with:
+          url: https://staging.example.com
+          psi-key: ${{ secrets.PSI_API_KEY }}
+```
+
+`@v0` moves to each 0.x release; pin `@v0.1.5` to stay on one version. Without `psi-key`, speed and Google's scores are usually missing (see below); add `args: --no-psi` to skip PageSpeed Insights on purpose. To keep the self-contained HTML report, set `html-file` and upload it:
+
+```yaml
+      - uses: BYDTechSolutions/site-audit@v0
+        with:
+          url: https://staging.example.com
+          html-file: site-audit.html
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: site-audit-report
+          path: site-audit.html
+```
+
+The full file is in [`examples/github-workflow.yml`](examples/github-workflow.yml).
+
+| Input | Default | What it does |
+|---|---|---|
+| `url` | (required) | the page to audit; `localhost` works for an app started in an earlier step |
+| `psi-key` | | PageSpeed Insights API key, from `secrets.*` |
+| `desktop` | `false` | also run PageSpeed Insights for desktop |
+| `fail-on` | `fix-now` | fail the step at `fix-now`, at `should-fix` or above, or `none` |
+| `html-file` | | also write the HTML report here |
+| `only` | | comma-separated areas |
+| `max-links` | `100` | most links to check on the page |
+| `wait` | `60` | seconds to wait for the URL to answer; `0` skips the wait |
+| `args` | | any other CLI options, e.g. `--no-psi` |
+| `package` | this tag's version | the npm package to run |
+
+Outputs: `fix-now`, `should-fix` and `nice-to-have` (counts), `scores` (Google's Lighthouse scores as JSON per strategy, for example `fromJSON(steps.audit.outputs.scores).mobile.performance`, or `{}` when PageSpeed Insights did not run), `report-json`, `report-md` and `html-file` (paths). The action needs Node.js 20 or newer on the runner, which GitHub-hosted runners have, and runs on Linux, macOS and Windows runners.
+
 ## CLI reference
 
 ```text
@@ -135,7 +189,7 @@ site-audit <url> [options]
 | Option | Default | What it does |
 |---|---|---|
 | `-f, --format <fmt>` | `text` | `text`, `json`, `md` or `html` (one self-contained file: inline CSS, no scripts, no external requests). |
-| `-o, --out <file>` | stdout | Write the report to a file. Without `--format`, the format comes from the extension (`.json`, `.md`, `.html`). |
+| `-o, --out <file>` | stdout | Write the report to a file. Without `--format`, the format comes from the extension (`.json`, `.md`, `.html`, anything else is text). Repeat it to write several formats from one audit. |
 | `--psi-key <key>` | `$PSI_API_KEY` | PageSpeed Insights API key. |
 | `--no-psi` | PSI on | Skip PageSpeed Insights: no speed or accessibility results. |
 | `--desktop` | mobile only | Also run PageSpeed Insights for desktop. |

@@ -5,18 +5,29 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-node@v4
+      - name: Audit
+        id: audit
+        uses: BYDTechSolutions/site-audit@v0
         with:
-          node-version: '22'
-      - run: npx @bydtech/site-audit https://staging.example.com --out report.html --fail-on fix-now
-        env:
-          PSI_API_KEY: ${{ secrets.PSI_API_KEY }}
-      - if: always()
+          url: https://staging.example.com
+          psi-key: ${{ secrets.PSI_API_KEY }}
+          html-file: site-audit.html
+          # desktop: true
+          # fail-on: should-fix   # stricter; none never fails
+      - name: Keep the HTML report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: site-audit-report
-          path: report.html
+          path: site-audit.html
+      - name: Google's mobile performance score
+        if: always()
+        env:
+          PERFORMANCE: ${{ fromJSON(steps.audit.outputs.scores || '{}').mobile.performance }}
+        run: echo "Google Lighthouse performance, mobile, this run - $PERFORMANCE"

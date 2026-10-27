@@ -22,3 +22,65 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm pack --dry-run
+
+  action:
+    name: GitHub Action (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Pack this commit
+        id: pack
+        shell: bash
+        run: |
+          npm run build
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP"
+          echo "tgz=$(ls "$RUNNER_TEMP"/bydtech-site-audit-*.tgz)" >> "$GITHUB_OUTPUT"
+      - name: Start the demo site
+        if: runner.os != 'Windows'
+        shell: bash
+        run: node examples/demo-site.mjs &
+      - name: Start the demo site (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Start-Process -FilePath node -ArgumentList 'examples/demo-site.mjs' -WindowStyle Hidden
+      - name: Audit, report only
+        id: report
+        uses: ./
+        with:
+          package: ${{ steps.pack.outputs.tgz }}
+          url: http://localhost:3456/
+          fail-on: none
+          html-file: site-audit.html
+          args: --no-psi
+      - name: Check the outputs
+        shell: bash
+        env:
+          FIX_NOW: ${{ steps.report.outputs.fix-now }}
+          HTML: ${{ steps.report.outputs.html-file }}
+          SCORES: ${{ steps.report.outputs.scores }}
+        run: |
+          test "$FIX_NOW" -gt 0
+          test -s "$HTML"
+          test "$SCORES" = '{}'
+      - name: Audit as a gate (must fail on the demo site)
+        id: gate
+        continue-on-error: true
+        uses: ./
+        with:
+          package: ${{ steps.pack.outputs.tgz }}
+          url: http://localhost:3456/
+          args: --no-psi
+      - name: Check the gate failed
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.gate.outcome }}
+        run: test "$OUTCOME" = failure

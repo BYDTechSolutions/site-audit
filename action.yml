@@ -1,0 +1,79 @@
+name: 'BYD site-audit'
+description: 'Audit one page: indexability, link previews, structured data, AI crawlers, speed, accessibility, security headers, links.'
+author: 'BYD Tech'
+branding:
+  icon: 'globe'
+  color: 'green'
+
+inputs:
+  url:
+    description: 'The page to audit, for example https://example.com or a preview deployment. localhost works for an app started in an earlier step.'
+    required: true
+  psi-key:
+    description: 'A PageSpeed Insights API key, from secrets.*. Without one, speed and Google''s Lighthouse scores may be missing.'
+    default: ''
+  desktop:
+    description: 'Also run PageSpeed Insights for desktop (mobile always runs): true or false.'
+    default: 'false'
+  fail-on:
+    description: 'Fail the step when a finding is at this level or above: fix-now, should-fix, or none.'
+    default: 'fix-now'
+  html-file:
+    description: 'Also write the self-contained HTML report here, to upload with actions/upload-artifact. Empty skips it.'
+    default: ''
+  only:
+    description: 'Comma-separated areas: indexability, meta, structured-data, ai-crawlers, robots-sitemaps, llms-txt, speed, accessibility, security, tags, links.'
+    default: ''
+  max-links:
+    description: 'Most links to check on the page (the CLI default is 100).'
+    default: ''
+  wait:
+    description: 'Seconds to wait for the URL to answer before auditing. 0 skips the wait.'
+    default: '60'
+  args:
+    description: 'Extra command-line options, for example "--timeout 30000 --no-probe".'
+    default: ''
+  package:
+    description: 'The npm package to run. Defaults to the @bydtech/site-audit version that matches this action''s tag.'
+    default: ''
+
+outputs:
+  fix-now:
+    description: 'Number of "Fix now" findings.'
+    value: ${{ steps.run.outputs.fix-now }}
+  should-fix:
+    description: 'Number of "Should fix" findings.'
+    value: ${{ steps.run.outputs.should-fix }}
+  nice-to-have:
+    description: 'Number of "Nice to have" findings.'
+    value: ${{ steps.run.outputs.nice-to-have }}
+  scores:
+    description: 'Google''s Lighthouse scores as JSON, per strategy, for example {"mobile":{"performance":91,...}}. Empty object when PageSpeed Insights did not run.'
+    value: ${{ steps.run.outputs.scores }}
+  report-json:
+    description: 'Path of the full JSON report.'
+    value: ${{ steps.run.outputs.report-json }}
+  report-md:
+    description: 'Path of the Markdown report (also added to the job summary).'
+    value: ${{ steps.run.outputs.report-md }}
+  html-file:
+    description: 'Path of the HTML report, if one was written.'
+    value: ${{ steps.run.outputs.html-file }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: run
+      shell: bash
+      run: bash "$GITHUB_ACTION_PATH/action/run.sh"
+      env:
+        INPUT_URL: ${{ inputs.url }}
+        INPUT_PSI_KEY: ${{ inputs.psi-key }}
+        INPUT_DESKTOP: ${{ inputs.desktop }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_HTML_FILE: ${{ inputs.html-file }}
+        INPUT_ONLY: ${{ inputs.only }}
+        INPUT_MAX_LINKS: ${{ inputs.max-links }}
+        INPUT_WAIT: ${{ inputs.wait }}
+        INPUT_ARGS: ${{ inputs.args }}
+        INPUT_PACKAGE: ${{ inputs.package }}
