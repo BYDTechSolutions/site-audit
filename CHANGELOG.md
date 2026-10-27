@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-10-28
+
+### Added
+
+- A GitHub Action: `uses: BYDTechSolutions/site-audit@v0`. It audits a page in one step, prints the report in the log, adds it to the job summary, can write the HTML report, sets the finding counts and Google's Lighthouse scores as outputs, and fails on "Fix now" by default. It runs the npm version that matches its tag.
+- `--out` can be repeated to write several formats from one audit, each picked by its file extension: `-o report.html -o report.md`. Screenshots are kept when one of them is HTML.
+
 ## [0.1.4] - 2026-10-23
 
 ### Added
@@ -98,7 +105,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SSRF guard: http(s) only; private, loopback, link-local and metadata addresses refused (also after redirects, and for names that resolve to them with `resolveHost`); caps on redirects, body size, time and links. The CLI allows `localhost`, `127.0.0.1` and `::1` so you can audit a dev server.
 - API: `audit`, `formatReport`, the facts each rule relies on with their sources, and `@bydtech/site-audit/node` with a `node:dns` resolver. The main entry uses web-standard APIs only.
 
-[Unreleased]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/BYDTechSolutions/site-audit/compare/v0.1.1...v0.1.2
