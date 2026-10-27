@@ -89,6 +89,22 @@ describe('cli', () => {
     expect(t.out()).toMatch(/Wrote html report to .*report\.html: \d+ fix now/);
   });
 
+  it('several --out files write several formats from one audit, and --fail-on still applies', async () => {
+    const t = io();
+    const args = [`${broken.origin}/`, '--no-psi', '--only', 'meta,security', '-o', 'r.txt', '-o', 'r.md', '-o', 'r.json', '-o', 'r.html', '--fail-on', 'should-fix'];
+    expect(await main(args, t.value)).toBe(1);
+    const byExt = (ext: string) => [...t.files.entries()].find(([p]) => p.endsWith(ext))?.[1] as string;
+    expect(t.files.size).toBe(4);
+    expect(byExt('r.txt')).not.toContain('\u001b[');
+    expect(byExt('r.md')).toMatch(/^# /m);
+    expect(JSON.parse(byExt('r.json')).findings.length).toBeGreaterThan(0);
+    expect(byExt('r.html')).toMatch(/^<!doctype html>/);
+    expect(t.out()).toMatch(/Wrote md report to .*r\.md/);
+    const bad = io();
+    expect(await main([`${broken.origin}/`, '-f', 'json', '-o', 'a.json', '-o', 'b.md'], bad.value)).toBe(2);
+    expect(bad.err()).toContain('--format works with one --out');
+  });
+
   it('exits 2 when the page cannot be fetched', async () => {
     const t = io();
     expect(await main(['http://127.0.0.1:1/', '--no-psi', '--timeout', '2000'], t.value)).toBe(2);

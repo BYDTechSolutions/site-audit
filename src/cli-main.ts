@@ -43,7 +43,8 @@ Examples:
 
 Options:
   -f, --format <fmt>     text (default), json, md or html (one self-contained file)
-  -o, --out <file>       write the report to a file (format taken from .json/.md/.html)
+  -o, --out <file>       write the report to a file, format from .json/.md/.html (anything
+                         else is text); repeat to write several formats at once
       --psi-key <key>    PageSpeed Insights API key (or set PSI_API_KEY)
       --no-psi           skip PageSpeed Insights (no speed or accessibility data)
       --desktop          also run PageSpeed Insights for desktop (mobile always runs)
@@ -76,7 +77,7 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
       strict: true,
       options: {
         format: { type: 'string', short: 'f' },
-        out: { type: 'string', short: 'o' },
+        out: { type: 'string', short: 'o', multiple: true },
         'psi-key': { type: 'string' },
         'no-psi': { type: 'boolean' },
         desktop: { type: 'boolean' },
@@ -111,14 +112,15 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
   };
   if (positionals.length !== 1) return usage(positionals.length ? 'Give exactly one URL.' : 'Give a URL to audit, e.g. site-audit https://example.com');
 
+  const outs = values.out ?? [];
   let format: ReportFormat = 'text';
   if (values.format) {
     if (!FORMATS.includes(values.format as ReportFormat)) return usage(`--format must be one of ${FORMATS.join(', ')}.`);
+    if (outs.length > 1) return usage('--format works with one --out. With several, each file\'s extension picks its format (.json, .md, .html, anything else is text).');
     format = values.format as ReportFormat;
-  } else if (values.out) {
-    const ext = extname(values.out).toLowerCase();
-    format = ext === '.json' ? 'json' : ext === '.md' || ext === '.markdown' ? 'md' : ext === '.html' || ext === '.htm' ? 'html' : 'text';
   }
+  const formatOf = (file: string): ReportFormat => (values.format ? format : formatFromExtension(file));
+  const formats = outs.length ? outs.map(formatOf) : [format];
 
   let only: Area[] | undefined;
   if (values.only) {
@@ -166,7 +168,7 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
     psiKey: values['psi-key'] || io.env.PSI_API_KEY || undefined,
     strategies: values.desktop ? ['mobile', 'desktop'] : ['mobile'],
     // Screenshots add hundreds of KB to a few MB: only for the HTML report, which shows them, or when asked.
-    screenshots: format === 'html' || !!values.screenshots,
+    screenshots: formats.includes('html') || !!values.screenshots,
     only,
     maxLinks,
     timeoutMs,
@@ -192,20 +194,24 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
   }
   clearProgress();
 
-  const color = format === 'text' && !values.out && io.stdoutIsTTY && !values['no-color'] && !io.env.NO_COLOR;
-  const output = formatReport(report, format, { color, width: Math.min(110, io.columns ?? 100) });
+  const width = Math.min(110, io.columns ?? 100);
   const c = counts(report);
-  if (values.out) {
-    const path = resolve(values.out);
-    try {
-      await (io.writeFile ?? ((p: string, d: string) => writeFile(p, d, 'utf8')))(path, output);
-    } catch (error) {
-      io.stderr(`site-audit: could not write ${path}: ${(error as Error).message}\n`);
-      return 2;
+  if (outs.length) {
+    const write = io.writeFile ?? ((p: string, d: string) => writeFile(p, d, 'utf8'));
+    for (const file of outs) {
+      const path = resolve(file);
+      const fmt = formatOf(file);
+      try {
+        await write(path, formatReport(report, fmt, { color: false, width }));
+      } catch (error) {
+        io.stderr(`site-audit: could not write ${path}: ${(error as Error).message}\n`);
+        return 2;
+      }
+      io.stdout(`Wrote ${fmt} report to ${path}: ${c['fix-now']} fix now, ${c['should-fix']} should fix, ${c['nice-to-have']} nice to have, ${report.passed.length} passed.\n`);
     }
-    io.stdout(`Wrote ${format} report to ${path}: ${c['fix-now']} fix now, ${c['should-fix']} should fix, ${c['nice-to-have']} nice to have, ${report.passed.length} passed.\n`);
   } else {
-    io.stdout(output);
+    const color = format === 'text' && io.stdoutIsTTY && !values['no-color'] && !io.env.NO_COLOR;
+    io.stdout(formatReport(report, format, { color, width }));
   }
 
   if (failOn) {
@@ -217,4 +223,10 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
     }
   }
   return 0;
+}
+
+/** The report format a file name asks for: .json, .md, .html, anything else text. */
+function formatFromExtension(file: string): ReportFormat {
+  const ext = extname(file).toLowerCase();
+  return ext === '.json' ? 'json' : ext === '.md' || ext === '.markdown' ? 'md' : ext === '.html' || ext === '.htm' ? 'html' : 'text';
 }
